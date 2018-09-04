@@ -215,6 +215,13 @@ return [
                 ],
             ],
         ],
+        'gql' => [
+            'entityRelationResolver' => [
+                \TYPO3\CMS\Core\GraphQL\Database\PassiveManyToManyEntityRelationResolver::class,
+                \TYPO3\CMS\Core\GraphQL\Database\PassiveOneToManyEntityRelationResolver::class,
+                \TYPO3\CMS\Core\GraphQL\Database\ActiveEntityRelationResolver::class,
+            ],
+        ],
         'defaultCategorizedTables' => '',
         'displayErrors' => -1,
         'productionExceptionHandler' => \TYPO3\CMS\Core\Error\ProductionExceptionHandler::class,

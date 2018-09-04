@@ -65,7 +65,8 @@
 		"typo3/cms-composer-installers": "^2.0",
 		"typo3/phar-stream-wrapper": "^3.0.1",
 		"typo3fluid/fluid": "^2.6.0",
-		"webmozart/assert": "^1.0"
+		"webmozart/assert": "^1.0",
+		"webonyx/graphql-php": "^0.12.4"
 	},
 	"require-dev": {
 		"codeception/codeception": "^2.4.5",
@@ -92,7 +93,8 @@
 			"always-add-alias-loader": true
 		},
 		"branch-alias": {
-			"dev-master": "10.0.x-dev"
+			"dev-master": "10.0.x-dev",
+			"dev-graphql": "10.0.x-dev"
 		}
 	},
 	"scripts": {
