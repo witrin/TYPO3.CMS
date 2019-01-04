@@ -19,7 +19,9 @@ CREATE TABLE tx_persistence_entity (
 	relation_select_mn_mm_content text,
 	relation_group_1n_content_page text,
 	relation_group_mn_csv_content_page text,
-	relation_group_mn_mm_content_page text
+	relation_group_mn_csv_any text,
+	relation_group_mn_mm_content_page text,
+	relation_group_mn_mm_any text
 );
 
 #

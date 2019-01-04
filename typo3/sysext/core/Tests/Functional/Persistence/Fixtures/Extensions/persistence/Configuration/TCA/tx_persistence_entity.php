@@ -1,7 +1,7 @@
 <?php
 return [
     'ctrl' =>[
-        'title' => 'LLL:EXT:persistence/Resources/Private/Language/locallang_tca.xlf:tx_persistence_entity',
+        'title' => 'Persistence Test Entity',
         'label' => 'title',
         'tstamp' => 'tstamp',
         'crdate' => 'crdate',
@@ -65,7 +65,7 @@ return [
         'title' => [
             'exclude' => true,
             'l10n_mode' => 'prefixLangTitle',
-            'label' => 'LLL:EXT:persistence/Resources/Private/Language/locallang_tca.xlf:tx_persistence_entity.title',
+            'label' => 'Title',
             'config' => [
                 'type' => 'input',
                 'size' => 30,
@@ -75,7 +75,7 @@ return [
         'scalar_string' => [
             'exclude' => true,
             'l10n_mode' => 'prefixLangTitle',
-            'label' => 'LLL:EXT:persistence/Resources/Private/Language/locallang_tca.xlf:tx_persistence_entity.scalar_string',
+            'label' => 'String',
             'config' => [
                 'type' => 'input',
                 'size' => 30,
@@ -85,7 +85,7 @@ return [
         'scalar_float' => [
             'exclude' => true,
             'l10n_mode' => 'prefixLangTitle',
-            'label' => 'LLL:EXT:persistence/Resources/Private/Language/locallang_tca.xlf:tx_persistence_entity.scalar_float',
+            'label' => 'Float',
             'config' => [
                 'type' => 'input',
                 'size' => 30,
@@ -95,7 +95,7 @@ return [
         'scalar_integer' => [
             'exclude' => true,
             'l10n_mode' => 'prefixLangTitle',
-            'label' => 'LLL:EXT:persistence/Resources/Private/Language/locallang_tca.xlf:tx_persistence_entity.scalar_integer',
+            'label' => 'Integer',
             'config' => [
                 'type' => 'input',
                 'size' => 30,
@@ -105,7 +105,7 @@ return [
         'scalar_text' => [
             'exclude' => true,
             'l10n_mode' => 'prefixLangTitle',
-            'label' => 'LLL:EXT:persistence/Resources/Private/Language/locallang_tca.xlf:tx_persistence_entity.scalar_text',
+            'label' => 'Text',
             'config' => [
                 'type' => 'input',
                 'size' => 30,
@@ -114,7 +114,7 @@ return [
         ],
         'relation_inline_11_file_reference' => [
             'exclude' => true,
-            'label' => 'LLL:EXT:persistence/Resources/Private/Language/locallang_tca.xlf:tx_persistence_entity.relation_inline_11_file_reference',
+            'label' => 'File reference (inline 1:1)',
             'config' => [
                 'type' => 'inline',
                 'foreign_field' => 'uid_foreign',
@@ -131,7 +131,7 @@ return [
         ],
         'relation_inline_1n_file_reference' => [
             'exclude' => true,
-            'label' => 'LLL:EXT:persistence/Resources/Private/Language/locallang_tca.xlf:tx_persistence_entity.relation_inline_1n_file_reference',
+            'label' => 'File reference (inline 1:n)',
             'config' => [
                 'type' => 'inline',
                 'foreign_field' => 'uid_foreign',
@@ -148,7 +148,7 @@ return [
         ],
         'relation_inline_1n_csv_file_reference' => [
             'exclude' => true,
-            'label' => 'LLL:EXT:persistence/Resources/Private/Language/locallang_tca.xlf:tx_persistence_entity.relation_inline_1n_csv_file_reference',
+            'label' => 'File reference (inline 1:n csv)',
             'config' => [
                 'type' => 'inline',
                 'foreign_table' => 'sys_file_reference',
@@ -158,7 +158,7 @@ return [
         ],
         'relation_inline_mn_mm_content' => [
             'exclude' => true,
-            'label' => 'LLL:EXT:persistence/Resources/Private/Language/locallang_tca.xlf:tx_persistence_entity.relation_inline_mn_mm_content',
+            'label' => 'Content (inline m:n mm)',
             'config' => [
                 'type' => 'inline',
                 'foreign_table' => 'tt_content',
@@ -173,7 +173,7 @@ return [
         ],
         'relation_inline_mn_symmetric_entity' => [
             'exclude' => true,
-            'label' => 'LLL:EXT:persistence/Resources/Private/Language/locallang_tca.xlf:tx_persistence_entity.relation_inline_mn_symmetric_entity',
+            'label' => 'Entity (inline m:n symmetric)',
             'config' => [
                 'type' => 'inline',
                 'foreign_table' => 'tx_persistence_entity_symmetric',
@@ -187,7 +187,7 @@ return [
         ],
         'relation_select_1n_page' => [
             'exclude' => true,
-            'label' => 'LLL:EXT:persistence/Resources/Private/Language/locallang_tca.xlf:tx_persistence_entity.relation_select_1n_page',
+            'label' => 'Page (select 1:n)',
             'config' => [
                 'type' => 'select',
                 'renderType' => 'selectSingle',
@@ -198,7 +198,7 @@ return [
         ],
         'relation_select_mn_csv_category' => [
             'exclude' => true,
-            'label' => 'LLL:EXT:persistence/Resources/Private/Language/locallang_tca.xlf:tx_persistence_entity.relation_select_mn_csv_category',
+            'label' => 'Category (select m:n csv)',
             'config' => [
                 'type' => 'select',
                 'renderType' => 'selectSingle',
@@ -209,7 +209,7 @@ return [
         ],
         'relation_select_mn_mm_content' => [
             'exclude' => true,
-            'label' => 'LLL:EXT:persistence/Resources/Private/Language/locallang_tca.xlf:tx_persistence_entity.relation_select_mn_mm_content',
+            'label' => 'Content (select m:n mm)',
             'config' => [
                 'type' => 'select',
                 'renderType' => 'selectSingle',
@@ -227,7 +227,7 @@ return [
         ],
         'relation_group_1n_content_page' => [
             'exclude' => true,
-            'label' => 'LLL:EXT:persistence/Resources/Private/Language/locallang_tca.xlf:tx_persistence_entity.relation_group_1n_content_page',
+            'label' => 'Content, Page (group 1:n)',
             'config' => [
                 'type' => 'group',
                 'internal_type' => 'db',
@@ -239,7 +239,7 @@ return [
         ],
         'relation_group_mn_csv_content_page' => [
             'exclude' => true,
-            'label' => 'LLL:EXT:persistence/Resources/Private/Language/locallang_tca.xlf:tx_persistence_entity.relation_group_mn_csv_content_page',
+            'label' => 'Content, Page (group m:n csv)',
             'config' => [
                 'type' => 'group',
                 'internal_type' => 'db',
@@ -249,16 +249,44 @@ return [
                 'default' => ''
             ]
         ],
+        'relation_group_mn_csv_any' => [
+            'exclude' => true,
+            'label' => 'Content, Page (group m:n csv)',
+            'config' => [
+                'type' => 'group',
+                'internal_type' => 'db',
+                'allowed' => '*',
+                'maxitems' => 10,
+                'autoSizeMax' => 10,
+                'default' => ''
+            ]
+        ],
         'relation_group_mn_mm_content_page' => [
             'exclude' => true,
-            'label' => 'LLL:EXT:persistence/Resources/Private/Language/locallang_tca.xlf:tx_persistence_entity.relation_group_mn_mm_content_page',
+            'label' => 'Content, Page (group m:n mm)',
             'config' => [
                 'type' => 'group',
                 'internal_type' => 'db',
                 'allowed' => 'tt_content,pages',
                 'MM' => 'tx_persistence_entity_mm',
                 'MM_match_fields' => [
-                    'fieldname' => 'relation_group_mn_mm_content_page'
+                    'fieldname' => 'relation_group_mn_mm_any'
+                ],
+                'maxitems' => 10,
+                'autoSizeMax' => 10,
+                'default' => ''
+            ]
+        ],
+        'relation_group_mn_mm_any' => [
+            'exclude' => true,
+            'label' => 'Content, Page (group m:n mm)',
+            'config' => [
+                'type' => 'group',
+                'internal_type' => 'db',
+                'allowed' => '*',
+                'MM' => 'tx_persistence_entity_mm',
+                'MM_match_fields' => [
+                    'fieldname' => 'relation_group_mn_mm_any'
                 ],
                 'maxitems' => 10,
                 'autoSizeMax' => 10,

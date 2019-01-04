@@ -1,7 +1,7 @@
 <?php
 return [
     'ctrl' => [
-        'title' => 'LLL:EXT:persistence/Resources/Private/Language/locallang_tca.xlf:tx_persistence_entity_symmetric',
+        'title' => 'Persistence Symmetric Test Entity',
         'label' => 'uid',
         'tstamp' => 'tstamp',
         'crdate' => 'crdate',
@@ -65,7 +65,7 @@ return [
             ]
         ],
         'entity' => [
-            'label' => 'LLL:EXT:persistence/Resources/Private/Language/locallang_tca.xlf:tx_persistence_entity_symmetric.entity',
+            'label' => 'Entity',
             'config' => [
                 'type' => 'select',
                 'renderType' => 'selectSingle',
@@ -75,7 +75,7 @@ return [
             ]
         ],
         'peer' => [
-            'label' => 'LLL:EXT:persistence/Resources/Private/Language/locallang_tca.xlf:tx_persistence_entity_symmetric.entity',
+            'label' => 'Peer',
             'config' => [
                 'type' => 'select',
                 'renderType' => 'selectSingle',
