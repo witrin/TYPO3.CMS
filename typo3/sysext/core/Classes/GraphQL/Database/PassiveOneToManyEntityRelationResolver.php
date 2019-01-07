@@ -2,8 +2,10 @@
 declare(strict_types = 1);
 namespace TYPO3\CMS\Core\GraphQL\Database;
 
+use GraphQL\Type\Definition\ResolveInfo;
 use TYPO3\CMS\Core\Configuration\MetaModel\ActivePropertyRelation;
 use TYPO3\CMS\Core\Configuration\MetaModel\PropertyDefinition;
+use TYPO3\CMS\Core\Database\Query\QueryBuilder;
 use Webmozart\Assert\Assert;
 
 /*
@@ -37,6 +39,17 @@ class PassiveOneToManyEntityRelationResolver extends AbstractPassiveEntityRelati
         return true;
     }
 
+    protected function fetchData(array $row)
+    {
+        parent::fetchData($row);
+
+        $propertyConfiguration = $this->getPropertyDefinition()->getConfiguration();
+
+        if (isset($propertyConfiguration['config']['symmetric_field'])) {
+            $this->result[$row[$propertyConfiguration['config']['symmetric_field']]][] = $row;
+        }
+    }
+
     protected function getTable(): string
     {
         return reset($this->getPropertyDefinition()->getRelationTableNames());
@@ -56,5 +69,35 @@ class PassiveOneToManyEntityRelationResolver extends AbstractPassiveEntityRelati
         Assert::isInstanceOf($activeRelation, ActivePropertyRelation::class);
 
         return $activeRelation->getTo()->getName();
+    }
+
+    protected function getCondition(QueryBuilder $builder, ResolveInfo $info)
+    {
+        $condition = parent::getCondition($builder, $info);
+
+        $propertyConfiguration = $this->getPropertyDefinition()->getConfiguration();
+
+        if (isset($propertyConfiguration['config']['foreign_table_field'])) {
+            $condition[] = $builder->expr()->eq(
+                $propertyConfiguration['config']['foreign_table_field'],
+                $builder->createNamedParameter($this->getPropertyDefinition()->getEntityDefinition()->getName())
+            );
+
+            if (isset($propertyConfiguration['config']['symmetric_field'])) {
+                $condition[] = $builder->expr()->andX(
+                    array_pop($condition),
+                    $builder->expr()->eq(
+                        $propertyConfiguration['config']['symmetric_field'],
+                        $builder->createNamedParameter($this->getPropertyDefinition()->getEntityDefinition()->getName())
+                    )
+                );
+            }
+        }
+
+        foreach ($propertyConfiguration['config']['foreign_match_fields'] ?? [] as $field => $match) {
+            $condition[] = $builder->expr()->eq($field, $builder->createNamedParameter($match));
+        }
+
+        return $condition;
     }
 }

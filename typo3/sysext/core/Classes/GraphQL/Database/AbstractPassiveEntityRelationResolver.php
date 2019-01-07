@@ -51,15 +51,13 @@ abstract class AbstractPassiveEntityRelationResolver extends AbstractEntityRelat
         if ($this->result === null) {
             $this->result = [];
 
-            $table = $this->getTable();
-            $foreignKeyField = $this->getForeignKeyField();
             $builder = $this->getBuilder($info);
             $statement = $builder->execute();
 
             while ($row = $statement->fetch()) {
                 $row['__table'] = $this->getType($row);
 
-                $this->result[$row[$foreignKeyField]][] = $row;
+                $this->fetchData($row);
             }
         }
 
@@ -71,6 +69,11 @@ abstract class AbstractPassiveEntityRelationResolver extends AbstractEntityRelat
     protected abstract function getTable(): string;
 
     protected abstract function getForeignKeyField(): string;
+
+    protected function fetchData(array $row)
+    {
+        $this->result[$row[$this->getForeignKeyField()]][] = $row;
+    }
 
     protected function getBuilder(ResolveInfo $info)
     {
@@ -104,17 +107,6 @@ abstract class AbstractPassiveEntityRelationResolver extends AbstractEntityRelat
             $this->getForeignKeyField(),
             $builder->createNamedParameter($this->keys, Connection::PARAM_INT_ARRAY)
         );
-
-        if (isset($propertyConfiguration['config']['foreign_table_field'])) {
-            $condition[] = $builder->expr()->eq(
-                $propertyConfiguration['config']['foreign_table_field'],
-                $builder->createNamedParameter($this->getPropertyDefinition()->getEntityDefinition()->getName())
-            );
-        }
-
-        foreach ($propertyConfiguration['config']['foreign_match_fields'] ?? [] as $field => $match) {
-            $condition[] = $builder->expr()->eq($field, $builder->createNamedParameter($match));
-        }
 
         return $condition;
     }

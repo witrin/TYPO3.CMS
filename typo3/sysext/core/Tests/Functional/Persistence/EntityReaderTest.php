@@ -288,7 +288,9 @@ class EntityReaderTest extends FunctionalTestCase
                     tx_persistence_entity {
                         title
                         relation_inline_mn_symmetric_entity {
-                            title
+                            peer {
+                                title
+                            }
                         }
                     }
                 }',
@@ -298,29 +300,45 @@ class EntityReaderTest extends FunctionalTestCase
                             [
                                 'title' => 'Entity 1',
                                 'relation_inline_mn_symmetric_entity' => [
-                                    ['title' => 'Entity 2'],
-                                    ['title' => 'Entity 3']
+                                    [
+                                        'peer' => [
+                                            ['title' => 'Entity 2']
+                                        ]
+                                    ],
+                                    [
+                                        'peer' => [
+                                            ['title' => 'Entity 3']
+                                        ]
+                                    ]
                                 ]
                             ],
                             [
                                 'title' => 'Entity 2',
-                                'relation_inline_mn_mm_content' => [
-                                    ['title' => 'Entity 1']
+                                'relation_inline_mn_symmetric_entity' => [
+                                    [
+                                        'peer' => [
+                                            ['title' => 'Entity 2']
+                                        ]
+                                    ]
                                 ]
                             ],
                             [
                                 'title' => 'Entity 3',
-                                'relation_inline_mn_mm_content' => [
-                                    ['title' => 'Entity 1']
+                                'relation_inline_mn_symmetric_entity' => [
+                                    [
+                                        'peer' => [
+                                            ['title' => 'Entity 3']
+                                        ]
+                                    ]
                                 ]
                             ],
                             [
                                 'title' => 'Entity 4',
-                                'relation_inline_mn_mm_content' => []
+                                'relation_inline_mn_symmetric_entity' => []
                             ],
                             [
                                 'title' => 'Entity 5',
-                                'relation_inline_mn_mm_content' => []
+                                'relation_inline_mn_symmetric_entity' => []
                             ]
                         ]
                     ]
