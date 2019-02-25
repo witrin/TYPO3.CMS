@@ -4,11 +4,14 @@ namespace TYPO3\CMS\Core\GraphQL\Database;
 
 use GraphQL\Type\Definition\ListOfType;
 use GraphQL\Type\Definition\ResolveInfo;
+use GraphQL\Type\Definition\Type;
 use TYPO3\CMS\Core\Configuration\MetaModel\EntityDefinition;
 use TYPO3\CMS\Core\Database\ConnectionPool;
 use TYPO3\CMS\Core\Database\Query\QueryBuilder;
+use TYPO3\CMS\Core\Database\Query\QueryHelper;
 use TYPO3\CMS\Core\GraphQL\AbstractEntityResolver;
 use TYPO3\CMS\Core\GraphQL\Database\FilterProcessor;
+use TYPO3\CMS\Core\GraphQL\Type\SortClauseType;
 use TYPO3\CMS\Core\Utility\GeneralUtility;
 
 /*
@@ -27,14 +30,28 @@ use TYPO3\CMS\Core\Utility\GeneralUtility;
 class EntityResolver extends AbstractEntityResolver
 {
 
-    public function resolve($source, ResolveInfo $info): array
+    public function getArguments(): array
     {
-        return $this->getBuilder($info)
+        return [
+            [
+                'name' => 'filter',
+                'type' => Type::string(),
+            ],
+            [
+                'name' => 'sort',
+                'type' => SortClauseType::instance(),
+            ]
+        ];
+    }
+
+    public function resolve($source, array $arguments, array $context, ResolveInfo $info): array
+    {
+        return $this->getBuilder($arguments, $context, $info)
             ->execute()
             ->fetchAll();
     }
 
-    protected function getBuilder(ResolveInfo $info)
+    protected function getBuilder(array $arguments, array $context, ResolveInfo $info): QueryBuilder
     {
         $table = $this->getTable($info);
 
@@ -53,21 +70,27 @@ class EntityResolver extends AbstractEntityResolver
             $builder->where(...$condition);
         }
 
+        $order = $this->getOrder((array)$arguments['sort']);
+
+        foreach ($order as $item) {
+            $builder->addOrderBy($item[0], $item[1]);
+        }
+
         return $builder;
     }
 
-    protected function getCondition(QueryBuilder $builder, ResolveInfo $info)
+    protected function getCondition(QueryBuilder $builder, ResolveInfo $info): array
     {
         $condition = GeneralUtility::makeInstance(FilterProcessor::class, $info, $builder)->process();
         return $condition !== null ? [$condition] : [];
     }
 
-    protected function getTable(ResolveInfo $info)
+    protected function getTable(ResolveInfo $info): string
     {
         return $this->getEntityDefinition()->getName();
     }
 
-    protected function getColumns(QueryBuilder $builder, ResolveInfo $info)
+    protected function getColumns(QueryBuilder $builder, ResolveInfo $info): array
     {
         $columns = ['uid'];
 
@@ -78,5 +101,26 @@ class EntityResolver extends AbstractEntityResolver
         }
 
         return $columns;
+    }
+
+    /**
+     * @todo Use the meta model.
+     */
+    protected function getOrder(array $items = []): array
+    {
+        if (empty($items)) {
+            $configuration = $GLOBALS['TCA'][$this->getEntityDefinition()->getName()];
+            $sortBy = $configuration['ctrl']['sortby'] ?: $configuration['ctrl']['default_sortby'];
+            $items = QueryHelper::parseOrderBy($sortBy ?? '');
+        } else {
+            $items = array_map(function($item) {
+                return [
+                    $item['field'],
+                    $item['order'] === 'descending' ? 'DESC' : 'ASC'
+                ];
+            }, $items);
+        }
+
+        return $items;
     }
 }

@@ -27,6 +27,7 @@ use TYPO3\CMS\Core\Configuration\MetaModel\EntityRelationMap;
 use TYPO3\CMS\Core\Configuration\MetaModel\PropertyDefinition;
 use TYPO3\CMS\Core\GraphQL\Database\EntityResolver;
 use TYPO3\CMS\Core\GraphQL\EntityRelationResolverFactory;
+use TYPO3\CMS\Core\GraphQL\Type\SortClauseType;
 use TYPO3\CMS\Core\Utility\GeneralUtility;
 
 class EntitySchemaFactory
@@ -43,12 +44,14 @@ class EntitySchemaFactory
         ];
 
         foreach ($entityRelationMap->getEntityDefinitions() as $entityDefinition) {
+            $resolver = GeneralUtility::makeInstance(EntityResolver::class, $entityDefinition);
+
             $query['fields'][$entityDefinition->getName()] = [
                 'type' => Type::listOf($this->buildObjectType($entityDefinition)),
-                'args' => $this->buildFieldArguments(),
+                'args' => $resolver->getArguments(),
                 'meta' => $entityDefinition,
-                'resolve' => function($source, $arguments, $context, ResolveInfo $info) use ($entityDefinition) {
-                    return GeneralUtility::makeInstance(EntityResolver::class, $entityDefinition)->resolve($source, $info);
+                'resolve' => function($source, $arguments, $context, ResolveInfo $info) use ($resolver) {
+                    return $resolver->resolve($source, $arguments, $context, $info);
                 }
             ];
         }
@@ -93,17 +96,19 @@ class EntitySchemaFactory
                         $field = [
                             'name' => $propertyDefinition->getName(),
                             'type' => $this->buildFieldType($propertyDefinition),
-                            'args' => $propertyDefinition->isRelationProperty() ? $this->buildFieldArguments() : [],
+                            'args' => [],
                             'meta' => $propertyDefinition
                         ];
 
                         if ($propertyDefinition->isRelationProperty() && !$propertyDefinition->isLanguageRelationProperty()) {
                             $resolver = GeneralUtility::makeInstance(EntityRelationResolverFactory::class)->create($propertyDefinition);
-                            $field['resolve'] = function($source, $arguments, $context, ResolveInfo $info) use ($resolver) {
-                                $resolver->collect($source, $info);
 
-                                return new Deferred(function() use ($resolver, $source, $info) {
-                                    return $resolver->resolve($source, $info);
+                            $field['args'] = $resolver->getArguments();
+                            $field['resolve'] = function($source, $arguments, $context, ResolveInfo $info) use ($resolver) {
+                                $resolver->collect($source, $arguments, $context, $info);
+
+                                return new Deferred(function() use ($resolver, $source, $arguments, $context, $info) {
+                                    return $resolver->resolve($source, $arguments, $context, $info);
                                 });
                             };
                         }
@@ -118,16 +123,6 @@ class EntitySchemaFactory
         }
 
         return $objectType;
-    }
-
-    protected function buildFieldArguments(PropertyDefinition $propertyDefinition = null)
-    {
-        return [
-            [
-                'name' => 'filter',
-                'type' => Type::string(),
-            ],
-        ];
     }
 
     /**

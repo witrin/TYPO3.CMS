@@ -3,12 +3,14 @@ declare(strict_types = 1);
 namespace TYPO3\CMS\Core\GraphQL\Database;
 
 use GraphQL\Type\Definition\ResolveInfo;
+use TYPO3\CMS\Core\Cache\Frontend\FrontendInterface;
 use TYPO3\CMS\Core\Configuration\MetaModel\ActiveEntityRelation;
 use TYPO3\CMS\Core\Configuration\MetaModel\ActivePropertyRelation;
 use TYPO3\CMS\Core\Configuration\MetaModel\PropertyDefinition;
 use TYPO3\CMS\Core\Database\Connection;
 use TYPO3\CMS\Core\Database\ConnectionPool;
 use TYPO3\CMS\Core\Database\Query\QueryBuilder;
+use TYPO3\CMS\Core\Database\Query\QueryHelper;
 use TYPO3\CMS\Core\GraphQL\AbstractEntityRelationResolver;
 use TYPO3\CMS\Core\Utility\GeneralUtility;
 use Webmozart\Assert\Assert;
@@ -28,16 +30,6 @@ use Webmozart\Assert\Assert;
 
 class ActiveEntityRelationResolver extends AbstractEntityRelationResolver
 {
-    /**
-     * @var array
-     */
-    protected $keys = [];
-
-    /**
-     * @var array
-     */
-    protected $result = null;
-
     public static function canResolve(PropertyDefinition $propertyDefinition)
     {
         if ($propertyDefinition->isManyToManyRelationProperty()) {
@@ -53,47 +45,70 @@ class ActiveEntityRelationResolver extends AbstractEntityRelationResolver
         return true;
     }
 
-    public function collect($source, ResolveInfo $info)
+    public function getArguments(): array
     {
-        if ($source !== null) {
-            Assert::keyExists($source, $this->getPropertyDefinition()->getName());
-            $this->keys = array_merge_recursive($this->keys, $this->getForeignKeys($source[$this->getPropertyDefinition()->getName()]));
-        }
+        return [];
     }
 
-    public function resolve($source, ResolveInfo $info): array
+    public function collect($source, array $arguments, array $context, ResolveInfo $info)
+    {
+        Assert::keyExists($context, 'cache');
+        Assert::isInstanceOf($context['cache'], FrontendInterface::class);
+
+        $cacheIdentifier = $this->getCacheIdentifier('keys');
+        $keys = $context['cache']->get($cacheIdentifier) ?: [];
+
+        if ($source !== null) {
+            Assert::keyExists($source, $this->getPropertyDefinition()->getName());
+            $keys = array_merge_recursive($keys, $this->getForeignKeys($source[$this->getPropertyDefinition()->getName()]));
+        }
+
+        $context['cache']->set($cacheIdentifier, $keys);
+    }
+
+    public function resolve($source, array $arguments, array $context, ResolveInfo $info): array
     {
         Assert::keyExists($source, $this->getPropertyDefinition()->getName());
+        Assert::keyExists($context, 'cache');
+        Assert::isInstanceOf($context['cache'], FrontendInterface::class);
 
+        $cacheIdentifier = $this->getCacheIdentifier('data');
+        $data = $context['cache']->get($cacheIdentifier) ?: [];
         $result = [];
 
-        if ($this->result === null) {
-            $this->result = [];
-
+        if (!$context['cache']->has($cacheIdentifier)) {
             $foreignKeyField = $this->getForeignKeyField();
 
             foreach ($this->getPropertyDefinition()->getRelationTableNames() as $table) {
-                $builder = $this->getBuilder($table, $info);
+                $builder = $this->getBuilder($table, $arguments, $context, $info);
                 $statement = $builder->execute();
 
                 while ($row = $statement->fetch()) {
                     $row['__table'] = $table;
-                    $this->result[$table][$row[$foreignKeyField]] = $row;
+                    $data[$table][$row[$foreignKeyField]] = $row;
                 }
             }
+
+            $context['cache']->set($cacheIdentifier, $data);
         }
 
         foreach ($this->getForeignKeys($source[$this->getPropertyDefinition()->getName()]) as $table => $foreignKeys) {
             foreach ($foreignKeys as $foreignKey) {
-                $result[] = $this->result[$table][$foreignKey];
+                $result[] = $data[$table][$foreignKey];
             }
         }
 
         return $result;
     }
 
-    protected function getBuilder(string $table, ResolveInfo $info)
+    protected function getCacheIdentifier($identifier): string
     {
+        return \spl_object_hash($this) . '_' . $identifier;
+    }
+
+    protected function getBuilder(string $table, array $arguments, array $context, ResolveInfo $info): QueryBuilder
+    {
+        $keys = $context['cache']->get($this->getCacheIdentifier('keys')) ?? [];
         $builder = GeneralUtility::makeInstance(ConnectionPool::class)
             ->getQueryBuilderForTable($table);
 
@@ -103,16 +118,22 @@ class ActiveEntityRelationResolver extends AbstractEntityRelationResolver
         $builder->select(...$this->getColumns($table, $builder, $info))
             ->from($table);
 
-        $condition = $this->getCondition($table, $builder, $info);
+        $condition = $this->getCondition($table, $keys, $builder, $info);
 
         if (!empty($condition)) {
             $builder->where(...$condition);
         }
 
+        $order = $this->getOrder($table, (array)$arguments['sort']);
+
+        foreach ($order as $item) {
+            $builder->addOrderBy($item[0], $item[1]);
+        }
+
         return $builder;
     }
 
-    protected function getCondition(string $table, QueryBuilder $builder, ResolveInfo $info)
+    protected function getCondition(string $table, array $keys, QueryBuilder $builder, ResolveInfo $info): array
     {
         $condition = GeneralUtility::makeInstance(FilterProcessor::class, $info, $builder)->process();
         $condition = $condition !== null ? [$condition] : [];
@@ -121,7 +142,7 @@ class ActiveEntityRelationResolver extends AbstractEntityRelationResolver
 
         $condition[] = $builder->expr()->in(
             $this->getForeignKeyField(),
-            $builder->createNamedParameter($this->keys[$table], Connection::PARAM_INT_ARRAY)
+            $builder->createNamedParameter($keys[$table], Connection::PARAM_INT_ARRAY)
         );
 
         if (isset($propertyConfiguration['config']['foreign_table_field'])) {
@@ -139,9 +160,9 @@ class ActiveEntityRelationResolver extends AbstractEntityRelationResolver
     }
 
     /**
-     * @todo Standard compliance.
+     * @todo GraphQL standard compliance.
      */
-    protected function getColumns(string $table, QueryBuilder $builder, ResolveInfo $info)
+    protected function getColumns(string $table, QueryBuilder $builder, ResolveInfo $info): array
     {
         $columns = [];
 
@@ -168,12 +189,12 @@ class ActiveEntityRelationResolver extends AbstractEntityRelationResolver
         return $columns;
     }
 
-    protected function getForeignKeyField()
+    protected function getForeignKeyField(): string
     {
         return 'uid';
     }
 
-    protected function getForeignKeys($commaSeparatedValues)
+    protected function getForeignKeys($commaSeparatedValues): array
     {
         $foreignKeys = [];
         $defaultTable = reset($this->getPropertyDefinition()->getRelationTableNames());
@@ -186,5 +207,26 @@ class ActiveEntityRelationResolver extends AbstractEntityRelationResolver
         }
 
         return $foreignKeys;
+    }
+
+    /**
+     * @todo Use the meta model.
+     */
+    protected function getOrder(string $table, array $items = []): array
+    {
+        if (empty($items)) {
+            $configuration = $GLOBALS['TCA'][$table];
+            $sortBy = $configuration['ctrl']['sortby'] ?: $configuration['ctrl']['default_sortby'];
+            $items = QueryHelper::parseOrderBy($sortBy ?? '');
+        } else {
+            $items = array_map(function($item) {
+                return [
+                    $table . '.' . $item['field'],
+                    $item['order'] === 'descending' ? 'DESC' : 'ASC'
+                ];
+            }, $items);
+        }
+
+        return $items;
     }
 }

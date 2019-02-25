@@ -213,6 +213,12 @@ return [
                     ],
                     'groups' => ['system']
                 ],
+                'gql' => [
+                    'frontend' => \TYPO3\CMS\Core\Cache\Frontend\VariableFrontend::class,
+                    'backend' => \TYPO3\CMS\Core\Cache\Backend\TransientMemoryBackend::class,
+                    'options' => [],
+                    'groups' => []
+                ],
             ],
         ],
         'gql' => [

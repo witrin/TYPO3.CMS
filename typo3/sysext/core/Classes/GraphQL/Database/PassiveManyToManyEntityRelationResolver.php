@@ -44,9 +44,9 @@ class PassiveManyToManyEntityRelationResolver extends AbstractPassiveEntityRelat
         return 'uid_local';
     }
 
-    protected function getBuilder(ResolveInfo $info)
+    protected function getBuilder(array $arguments, array $context, ResolveInfo $info): QueryBuilder
     {
-        $builder = parent::getBuilder($info);
+        $builder = parent::getBuilder($arguments, $context, $info);
 
         $associativeTable = $this->getTable();
 
@@ -65,15 +65,19 @@ class PassiveManyToManyEntityRelationResolver extends AbstractPassiveEntityRelat
                         $builder->createNamedParameter($table)
                     )
                 )
-            )->orderBy($associativeTable . '.sorting');
+            );
+        }
+
+        if (empty($arguments['sort'])) {
+            $builder->orderBy($associativeTable . '.sorting');
         }
 
         return $builder;
     }
 
-    protected function getCondition(QueryBuilder $builder, ResolveInfo $info)
+    protected function getCondition(array $keys, QueryBuilder $builder, ResolveInfo $info): array
     {
-        $condition = parent::getCondition($builder, $info);
+        $condition = parent::getCondition($keys, $builder, $info);
 
         foreach ($propertyConfiguration['config']['MM_match_fields'] as $field => $match) {
             $condition[] = $builder->expr()->eq($field, $builder->createNamedParameter($match));
@@ -87,7 +91,7 @@ class PassiveManyToManyEntityRelationResolver extends AbstractPassiveEntityRelat
         return $condition;
     }
 
-    protected function getColumns(QueryBuilder $builder, ResolveInfo $info)
+    protected function getColumns(QueryBuilder $builder, ResolveInfo $info): array
     {
         $columns = parent::getColumns($builder, $info);
 

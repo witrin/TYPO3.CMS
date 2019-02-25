@@ -15,6 +15,7 @@ namespace TYPO3\CMS\Core\Tests\Functional\Persistence;
  * The TYPO3 project - inspiring people to share!
  */
 
+use GraphQL\Error\Error;
 use TYPO3\CMS\Core\Context\Context;
 use TYPO3\CMS\Core\Persistence\EntityReader;
 use TYPO3\TestingFramework\Core\Functional\FunctionalTestCase;
@@ -51,9 +52,9 @@ class EntityReaderTest extends FunctionalTestCase
                 [
                     'data' => [
                         'tt_content' => [
-                            ['uid' => 512, 'header' => 'Content 1'],
                             ['uid' => 513, 'header' => 'Content 2'],
-                            ['uid' => 514, 'header' => 'Content 3']
+                            ['uid' => 514, 'header' => 'Content 3'],
+                            ['uid' => 512, 'header' => 'Content 1']
                         ]
                     ]
                 ]
@@ -69,10 +70,10 @@ class EntityReaderTest extends FunctionalTestCase
                 [
                     'data' => [
                         'tx_persistence_entity' => [
-                            ['uid' => 1024, 'scalar_float' => 0, 'scalar_string' => 'String'],
-                            ['uid' => 1025, 'scalar_float' => 3.1415, 'scalar_string' => null],
-                            ['uid' => 1026, 'scalar_float' => 0, 'scalar_string' => null],
                             ['uid' => 1027, 'scalar_float' => -3.1415, 'scalar_string' => 'String'],
+                            ['uid' => 1025, 'scalar_float' => 3.1415, 'scalar_string' => null],
+                            ['uid' => 1024, 'scalar_float' => 0, 'scalar_string' => 'String'],
+                            ['uid' => 1026, 'scalar_float' => 0, 'scalar_string' => null],
                             ['uid' => 1028, 'scalar_float' => 0, 'scalar_string' => null]
                         ]
                     ]
@@ -140,21 +141,21 @@ class EntityReaderTest extends FunctionalTestCase
                     'data' => [
                         'tx_persistence_entity' => [
                             [
-                                'title' => 'Entity 1',
-                                'relation_inline_11_file_reference' => [
-                                    ['title' => 'File reference 1']
-                                ]
+                                'title' => 'Entity 4',
+                                'relation_inline_11_file_reference' => []
                             ],
                             [
                                 'title' => 'Entity 2',
                                 'relation_inline_11_file_reference' => []
                             ],
                             [
-                                'title' => 'Entity 3',
-                                'relation_inline_11_file_reference' => []
+                                'title' => 'Entity 1',
+                                'relation_inline_11_file_reference' => [
+                                    ['title' => 'File reference 1']
+                                ]
                             ],
                             [
-                                'title' => 'Entity 4',
+                                'title' => 'Entity 3',
                                 'relation_inline_11_file_reference' => []
                             ],
                             [
@@ -179,6 +180,14 @@ class EntityReaderTest extends FunctionalTestCase
                     'data' => [
                         'tx_persistence_entity' => [
                             [
+                                'title' => 'Entity 4',
+                                'relation_inline_1n_file_reference' => []
+                            ],
+                            [
+                                'title' => 'Entity 2',
+                                'relation_inline_1n_file_reference' => []
+                            ],
+                            [
                                 'title' => 'Entity 1',
                                 'relation_inline_1n_file_reference' => [
                                     ['title' => 'File reference 2', 'description' => null],
@@ -186,15 +195,7 @@ class EntityReaderTest extends FunctionalTestCase
                                 ]
                             ],
                             [
-                                'title' => 'Entity 2',
-                                'relation_inline_1n_file_reference' => []
-                            ],
-                            [
                                 'title' => 'Entity 3',
-                                'relation_inline_1n_file_reference' => []
-                            ],
-                            [
-                                'title' => 'Entity 4',
                                 'relation_inline_1n_file_reference' => []
                             ],
                             [
@@ -218,6 +219,14 @@ class EntityReaderTest extends FunctionalTestCase
                     'data' => [
                         'tx_persistence_entity' => [
                             [
+                                'title' => 'Entity 4',
+                                'relation_inline_1n_csv_file_reference' => []
+                            ],
+                            [
+                                'title' => 'Entity 2',
+                                'relation_inline_1n_csv_file_reference' => []
+                            ],
+                            [
                                 'title' => 'Entity 1',
                                 'relation_inline_1n_csv_file_reference' => [
                                     ['title' => 'File reference 4'],
@@ -225,15 +234,7 @@ class EntityReaderTest extends FunctionalTestCase
                                 ]
                             ],
                             [
-                                'title' => 'Entity 2',
-                                'relation_inline_1n_csv_file_reference' => []
-                            ],
-                            [
                                 'title' => 'Entity 3',
-                                'relation_inline_1n_csv_file_reference' => []
-                            ],
-                            [
-                                'title' => 'Entity 4',
                                 'relation_inline_1n_csv_file_reference' => []
                             ],
                             [
@@ -257,22 +258,23 @@ class EntityReaderTest extends FunctionalTestCase
                     'data' => [
                         'tx_persistence_entity' => [
                             [
-                                'title' => 'Entity 1',
-                                'relation_inline_mn_mm_content' => [
-                                    ['header' => 'Content 1'],
-                                    ['header' => 'Content 2']
-                                ]
+                                'title' => 'Entity 4',
+                                'relation_inline_mn_mm_content' => []
                             ],
                             [
                                 'title' => 'Entity 2',
                                 'relation_inline_mn_mm_content' => []
                             ],
                             [
-                                'title' => 'Entity 3',
-                                'relation_inline_mn_mm_content' => []
+                                'title' => 'Entity 1',
+                                'relation_inline_mn_mm_content' => [
+                                    ['header' => 'Content 1'],
+                                    ['header' => 'Content 2'],
+                                    ['header' => 'Content 3']
+                                ]
                             ],
                             [
-                                'title' => 'Entity 4',
+                                'title' => 'Entity 3',
                                 'relation_inline_mn_mm_content' => []
                             ],
                             [
@@ -298,6 +300,20 @@ class EntityReaderTest extends FunctionalTestCase
                     'data' => [
                         'tx_persistence_entity' => [
                             [
+                                'title' => 'Entity 4',
+                                'relation_inline_mn_symmetric_entity' => []
+                            ],
+                            [
+                                'title' => 'Entity 2',
+                                'relation_inline_mn_symmetric_entity' => [
+                                    [
+                                        'peer' => [
+                                            ['title' => 'Entity 2']
+                                        ]
+                                    ]
+                                ]
+                            ],
+                            [
                                 'title' => 'Entity 1',
                                 'relation_inline_mn_symmetric_entity' => [
                                     [
@@ -313,16 +329,6 @@ class EntityReaderTest extends FunctionalTestCase
                                 ]
                             ],
                             [
-                                'title' => 'Entity 2',
-                                'relation_inline_mn_symmetric_entity' => [
-                                    [
-                                        'peer' => [
-                                            ['title' => 'Entity 2']
-                                        ]
-                                    ]
-                                ]
-                            ],
-                            [
                                 'title' => 'Entity 3',
                                 'relation_inline_mn_symmetric_entity' => [
                                     [
@@ -331,10 +337,6 @@ class EntityReaderTest extends FunctionalTestCase
                                         ]
                                     ]
                                 ]
-                            ],
-                            [
-                                'title' => 'Entity 4',
-                                'relation_inline_mn_symmetric_entity' => []
                             ],
                             [
                                 'title' => 'Entity 5',
@@ -357,7 +359,7 @@ class EntityReaderTest extends FunctionalTestCase
                     'data' => [
                         'tx_persistence_entity' => [
                             [
-                                'title' => 'Entity 1',
+                                'title' => 'Entity 4',
                                 'relation_select_1n_page' => []
                             ],
                             [
@@ -367,11 +369,11 @@ class EntityReaderTest extends FunctionalTestCase
                                 ]
                             ],
                             [
-                                'title' => 'Entity 3',
+                                'title' => 'Entity 1',
                                 'relation_select_1n_page' => []
                             ],
                             [
-                                'title' => 'Entity 4',
+                                'title' => 'Entity 3',
                                 'relation_select_1n_page' => []
                             ],
                             [
@@ -395,7 +397,7 @@ class EntityReaderTest extends FunctionalTestCase
                     'data' => [
                         'tx_persistence_entity' => [
                             [
-                                'title' => 'Entity 1',
+                                'title' => 'Entity 4',
                                 'relation_select_mn_csv_category' => []
                             ],
                             [
@@ -406,11 +408,11 @@ class EntityReaderTest extends FunctionalTestCase
                                 ]
                             ],
                             [
-                                'title' => 'Entity 3',
+                                'title' => 'Entity 1',
                                 'relation_select_mn_csv_category' => []
                             ],
                             [
-                                'title' => 'Entity 4',
+                                'title' => 'Entity 3',
                                 'relation_select_mn_csv_category' => []
                             ],
                             [
@@ -434,23 +436,24 @@ class EntityReaderTest extends FunctionalTestCase
                     'data' => [
                         'tx_persistence_entity' => [
                             [
-                                'title' => 'Entity 1',
-                                'relation_select_mn_mm_content' => [
-                                ]
+                                'title' => 'Entity 4',
+                                'relation_select_mn_mm_content' => []
                             ],
                             [
                                 'title' => 'Entity 2',
                                 'relation_select_mn_mm_content' => [
                                     ['header' => 'Content 1'],
-                                    ['header' => 'Content 2']
+                                    ['header' => 'Content 2'],
+                                    ['header' => 'Content 3']
+                                ]
+                            ],
+                            [
+                                'title' => 'Entity 1',
+                                'relation_select_mn_mm_content' => [
                                 ]
                             ],
                             [
                                 'title' => 'Entity 3',
-                                'relation_select_mn_mm_content' => []
-                            ],
-                            [
-                                'title' => 'Entity 4',
                                 'relation_select_mn_mm_content' => []
                             ],
                             [
@@ -479,7 +482,7 @@ class EntityReaderTest extends FunctionalTestCase
                     'data' => [
                         'tx_persistence_entity' => [
                             [
-                                'title' => 'Entity 1',
+                                'title' => 'Entity 4',
                                 'relation_group_1n_content_page' => []
                             ],
                             [
@@ -487,14 +490,14 @@ class EntityReaderTest extends FunctionalTestCase
                                 'relation_group_1n_content_page' => []
                             ],
                             [
+                                'title' => 'Entity 1',
+                                'relation_group_1n_content_page' => []
+                            ],
+                            [
                                 'title' => 'Entity 3',
                                 'relation_group_1n_content_page' => [
                                     ['title' => 'Page 1.2']
                                 ]
-                            ],
-                            [
-                                'title' => 'Entity 4',
-                                'relation_group_1n_content_page' => []
                             ],
                             [
                                 'title' => 'Entity 5',
@@ -522,11 +525,15 @@ class EntityReaderTest extends FunctionalTestCase
                     'data' => [
                         'tx_persistence_entity' => [
                             [
-                                'title' => 'Entity 1',
+                                'title' => 'Entity 4',
                                 'relation_group_mn_csv_content_page' => []
                             ],
                             [
                                 'title' => 'Entity 2',
+                                'relation_group_mn_csv_content_page' => []
+                            ],
+                            [
+                                'title' => 'Entity 1',
                                 'relation_group_mn_csv_content_page' => []
                             ],
                             [
@@ -535,10 +542,6 @@ class EntityReaderTest extends FunctionalTestCase
                                     ['header' => 'Content 2'],
                                     ['title' => 'Page 1.1']
                                 ]
-                            ],
-                            [
-                                'title' => 'Entity 4',
-                                'relation_group_mn_csv_content_page' => []
                             ],
                             [
                                 'title' => 'Entity 5',
@@ -566,11 +569,15 @@ class EntityReaderTest extends FunctionalTestCase
                     'data' => [
                         'tx_persistence_entity' => [
                             [
-                                'title' => 'Entity 1',
+                                'title' => 'Entity 4',
                                 'relation_group_mn_mm_content_page' => []
                             ],
                             [
                                 'title' => 'Entity 2',
+                                'relation_group_mn_mm_content_page' => []
+                            ],
+                            [
+                                'title' => 'Entity 1',
                                 'relation_group_mn_mm_content_page' => []
                             ],
                             [
@@ -579,10 +586,6 @@ class EntityReaderTest extends FunctionalTestCase
                                     ['title' => 'Page 1.2'],
                                     ['header' => 'Content 3']
                                 ]
-                            ],
-                            [
-                                'title' => 'Entity 4',
-                                'relation_group_mn_mm_content_page' => []
                             ],
                             [
                                 'title' => 'Entity 5',
@@ -606,6 +609,102 @@ class EntityReaderTest extends FunctionalTestCase
         $this->assertEquals($expected, $result);
     }
 
+    public function sortResultProvider()
+    {
+        return [
+            [
+                '{
+                    tx_persistence_entity (sort: "title descending") {
+                        title
+                    }
+                }',
+                [
+                    'data' => [
+                        'tx_persistence_entity' => [
+                            ['title' => 'Entity 5'],
+                            ['title' => 'Entity 4'],
+                            ['title' => 'Entity 3'],
+                            ['title' => 'Entity 2'],
+                            ['title' => 'Entity 1']
+                        ]
+                    ]
+                ]
+            ],
+            [
+                '{
+                    tx_persistence_entity (sort: "scalar_string ascending, title ascending") {
+                        scalar_string,
+                        title
+                    }
+                }',
+                [
+                    'data' => [
+                        'tx_persistence_entity' => [
+                            ['scalar_string' => '', 'title' => 'Entity 2'],
+                            ['scalar_string' => '', 'title' => 'Entity 3'],
+                            ['scalar_string' => '', 'title' => 'Entity 5'],
+                            ['scalar_string' => 'String', 'title' => 'Entity 1'],
+                            ['scalar_string' => 'String', 'title' => 'Entity 4'],
+                        ]
+                    ]
+                ]
+            ],
+            [
+                '{
+                    tx_persistence_entity(sort: "title ascending") {
+                        title
+                        relation_select_mn_mm_content(sort: "bodytext ascending, header descending") {
+                            header
+                            bodytext
+                        }
+                    }
+                }',
+                [
+                    'data' => [
+                        'tx_persistence_entity' => [
+                            [
+                                'title' => 'Entity 1',
+                                'relation_select_mn_mm_content' => []
+                            ],
+                            [
+                                'title' => 'Entity 2',
+                                'relation_select_mn_mm_content' => [
+                                    ['header' => 'Content 2', 'bodytext' => ''],
+                                    ['header' => 'Content 3', 'bodytext' => 'Lorem ipsum dolor...'],
+                                    ['header' => 'Content 1', 'bodytext' => 'Lorem ipsum dolor...']
+                                ]
+                            ],
+                            [
+                                'title' => 'Entity 3',
+                                'relation_select_mn_mm_content' => [
+                                ]
+                            ],
+                            [
+                                'title' => 'Entity 4',
+                                'relation_select_mn_mm_content' => []
+                            ],
+                            [
+                                'title' => 'Entity 5',
+                                'relation_select_mn_mm_content' => []
+                            ]
+                        ]
+                    ]
+                ]
+            ]
+        ];
+    }
+
+    /**
+     * @test
+     * @dataProvider sortResultProvider
+     */
+    public function sortResult(string $query, array $expected)
+    {
+        $reader = new EntityReader();
+        $result = $reader->execute($query);
+        $this->assertEquals($expected, $result);
+    }
+
     public function filterRestrictedQueryProvider()
     {
         return [
@@ -619,8 +718,8 @@ class EntityReaderTest extends FunctionalTestCase
                 [
                     'data' => [
                         'tx_persistence_entity' => [
-                            ['uid' => 1024],
-                            ['uid' => 1027]
+                            ['uid' => 1027],
+                            ['uid' => 1024]
                         ]
                     ]
                 ]
@@ -635,9 +734,9 @@ class EntityReaderTest extends FunctionalTestCase
                 [
                     'data' => [
                         'tx_persistence_entity' => [
-                            ['uid' => 1024],
-                            ['uid' => 1025],
                             ['uid' => 1027],
+                            ['uid' => 1025],
+                            ['uid' => 1024],
                             ['uid' => 1028]
                         ]
                     ]
@@ -653,9 +752,9 @@ class EntityReaderTest extends FunctionalTestCase
                 [
                     'data' => [
                         'tx_persistence_entity' => [
+                            ['uid' => 1027],
                             ['uid' => 1025],
-                            ['uid' => 1026],
-                            ['uid' => 1027]
+                            ['uid' => 1026]
                         ]
                     ]
                 ]
@@ -670,8 +769,8 @@ class EntityReaderTest extends FunctionalTestCase
                 [
                     'data' => [
                         'tx_persistence_entity' => [
-                            ['uid' => 1025],
-                            ['uid' => 1027]
+                            ['uid' => 1027],
+                            ['uid' => 1025]
                         ]
                     ]
                 ]
@@ -686,8 +785,8 @@ class EntityReaderTest extends FunctionalTestCase
                 [
                     'data' => [
                         'tx_persistence_entity' => [
-                            ['uid' => 1024],
                             ['uid' => 1025],
+                            ['uid' => 1024],
                             ['uid' => 1026]
                         ]
                     ]
@@ -703,7 +802,7 @@ class EntityReaderTest extends FunctionalTestCase
     public function readFilterRestricted(string $query, array $bindings, array $expected)
     {
         $reader = new EntityReader();
-        $result = $reader->execute($query, [], $bindings);
+        $result = $reader->execute($query, $bindings);
         $this->assertEquals($expected, $result);
     }
 
@@ -719,7 +818,23 @@ class EntityReaderTest extends FunctionalTestCase
     public function readContextRestricted(string $query, Context $context, array $expected)
     {
         $reader = new EntityReader();
-        $result = $reader->execute($query, [], [], $context);
+        $result = $reader->execute($query, [], $context);
         $this->assertEquals($expected, $result);
+    }
+
+    public function unsupportedQueryProvider()
+    {
+        return [];
+    }
+
+    /**
+     * @test
+     * @dataProvider unsupportedQueryProvider
+     */
+    public function throwUnsupported(string $query)
+    {
+        $this->expectException(Error::class);
+        $reader = new EntityReader();
+        $result = $reader->execute($query);
     }
 }

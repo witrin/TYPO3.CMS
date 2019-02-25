@@ -1,6 +1,6 @@
 <?php
 declare(strict_types = 1);
-namespace TYPO3\CMS\Core\Tests\Unit\Persistence\GraphQL;
+namespace TYPO3\CMS\Core\Tests\Unit\GraphQL;
 
 /*
  * This file is part of the TYPO3 CMS project.

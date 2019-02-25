@@ -3,13 +3,17 @@ declare(strict_types = 1);
 namespace TYPO3\CMS\Core\GraphQL\Database;
 
 use GraphQL\Type\Definition\ResolveInfo;
+use GraphQL\Type\Definition\Type;
+use TYPO3\CMS\Core\Cache\Frontend\FrontendInterface;
 use TYPO3\CMS\Core\Configuration\MetaModel\ActiveEntityRelation;
 use TYPO3\CMS\Core\Configuration\MetaModel\ActivePropertyRelation;
 use TYPO3\CMS\Core\Configuration\MetaModel\PropertyDefinition;
 use TYPO3\CMS\Core\Database\Connection;
 use TYPO3\CMS\Core\Database\ConnectionPool;
 use TYPO3\CMS\Core\Database\Query\QueryBuilder;
+use TYPO3\CMS\Core\Database\Query\QueryHelper;
 use TYPO3\CMS\Core\GraphQL\AbstractEntityRelationResolver;
+use TYPO3\CMS\Core\GraphQL\Type\SortClauseType;
 use TYPO3\CMS\Core\Utility\GeneralUtility;
 use Webmozart\Assert\Assert;
 
@@ -28,40 +32,58 @@ use Webmozart\Assert\Assert;
 
 abstract class AbstractPassiveEntityRelationResolver extends AbstractEntityRelationResolver
 {
-    /**
-     * @var array
-     */
-    protected $keys = [];
-
-    /**
-     * @var array
-     */
-    protected $result = null;
-
-    public function collect($source, ResolveInfo $info)
+    public function getArguments(): array
     {
-        if ($source !== null) {
-            Assert::keyExists($source, 'uid');
-            $this->keys[] = $source['uid'];
-        }
+        return [
+            [
+                'name' => 'filter',
+                'type' => Type::string(),
+            ],
+            [
+                'name' => 'sort',
+                'type' => SortClauseType::instance(),
+            ]
+        ];
     }
 
-    public function resolve($source, ResolveInfo $info): array
+    public function collect($source, array $arguments, array $context, ResolveInfo $info)
     {
-        if ($this->result === null) {
-            $this->result = [];
+        Assert::keyExists($context, 'cache');
+        Assert::isInstanceOf($context['cache'], FrontendInterface::class);
 
-            $builder = $this->getBuilder($info);
+        $cacheIdentifier = $this->getCacheIdentifier('keys');
+        $keys = $context['cache']->get($cacheIdentifier) ?: [];
+
+        if ($source !== null) {
+            Assert::keyExists($source, 'uid');
+            $keys[] = $source['uid'];
+        }
+
+        $context['cache']->set($cacheIdentifier, $keys);
+    }
+
+    public function resolve($source, array $arguments, array $context, ResolveInfo $info): array
+    {
+        Assert::keyExists($context, 'cache');
+        Assert::isInstanceOf($context['cache'], FrontendInterface::class);
+
+        $cacheIdentifier = $this->getCacheIdentifier('data');
+        $data = $context['cache']->get($cacheIdentifier) ?: [];
+
+        if (!$context['cache']->has($cacheIdentifier)) {
+            $builder = $this->getBuilder($arguments, $context, $info);
             $statement = $builder->execute();
 
             while ($row = $statement->fetch()) {
                 $row['__table'] = $this->getType($row);
 
-                $this->fetchData($row);
+                $data = $this->fetchData($row, $data);
             }
+
+            $context['cache']->set($cacheIdentifier, $data);
         }
 
-        return $this->result[$source['uid']] ?? [];
+        return $data[$source['uid']] ?? [];
     }
 
     protected abstract function getType(array $source): string;
@@ -70,14 +92,21 @@ abstract class AbstractPassiveEntityRelationResolver extends AbstractEntityRelat
 
     protected abstract function getForeignKeyField(): string;
 
-    protected function fetchData(array $row)
+    protected function getCacheIdentifier($identifier): string
     {
-        $this->result[$row[$this->getForeignKeyField()]][] = $row;
+        return \spl_object_hash($this) . '_' . $identifier;
     }
 
-    protected function getBuilder(ResolveInfo $info)
+    protected function fetchData(array $row, array $data): array
+    {
+        $data[$row[$this->getForeignKeyField()]][] = $row;
+        return $data;
+    }
+
+    protected function getBuilder(array $arguments, array $context, ResolveInfo $info)
     {
         $table = $this->getTable();
+        $keys = $context['cache']->get($this->getCacheIdentifier('keys')) ?? [];
         $builder = GeneralUtility::makeInstance(ConnectionPool::class)
             ->getQueryBuilderForTable($table);
 
@@ -87,16 +116,22 @@ abstract class AbstractPassiveEntityRelationResolver extends AbstractEntityRelat
         $builder->select(...$this->getColumns($builder, $info))
             ->from($table);
 
-        $condition = $this->getCondition($builder, $info);
+        $condition = $this->getCondition($keys, $builder, $info);
 
         if (!empty($condition)) {
             $builder->where(...$condition);
         }
 
+        $order = $this->getOrder((array)$arguments['sort']);
+
+        foreach ($order as $item) {
+            $builder->addOrderBy($item[0], $item[1]);
+        }
+
         return $builder;
     }
 
-    protected function getCondition(QueryBuilder $builder, ResolveInfo $info)
+    protected function getCondition(array $keys, QueryBuilder $builder, ResolveInfo $info)
     {
         $condition = GeneralUtility::makeInstance(FilterProcessor::class, $info, $builder)->process();
         $condition = $condition !== null ? [$condition] : [];
@@ -105,7 +140,7 @@ abstract class AbstractPassiveEntityRelationResolver extends AbstractEntityRelat
 
         $condition[] = $builder->expr()->in(
             $this->getForeignKeyField(),
-            $builder->createNamedParameter($this->keys, Connection::PARAM_INT_ARRAY)
+            $builder->createNamedParameter($keys, Connection::PARAM_INT_ARRAY)
         );
 
         return $condition;
@@ -136,5 +171,26 @@ abstract class AbstractPassiveEntityRelationResolver extends AbstractEntityRelat
         }
 
         return $columns;
+    }
+
+    /**
+     * @todo Use the meta model.
+     */
+    protected function getOrder(array $items = []): array
+    {
+        if (empty($items)) {
+            $configuration = $GLOBALS['TCA'][$this->getTable()];
+            $sortBy = $configuration['ctrl']['sortby'] ?: $configuration['ctrl']['default_sortby'];
+            $items = QueryHelper::parseOrderBy($sortBy ?? '');
+        } else {
+            $items = array_map(function($item) {
+                return [
+                    $item['field'],
+                    $item['order'] === 'descending' ? 'DESC' : 'ASC'
+                ];
+            }, $items);
+        }
+
+        return $items;
     }
 }

@@ -19,5 +19,5 @@ use GraphQL\Type\Definition\ResolveInfo;
 
 interface BufferedResolverInterface extends ResolverInterface
 {
-    public function collect($source, ResolveInfo $info);
+    public function collect($source, array $arguments, array $context, ResolveInfo $info);
 }

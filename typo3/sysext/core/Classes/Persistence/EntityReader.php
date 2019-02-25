@@ -19,9 +19,10 @@ use GraphQL\Error\Debug;
 use GraphQL\GraphQL;
 use GraphQL\Type\Definition\ResolveInfo;
 use GraphQL\Type\Schema;
-use TYPO3\CMS\Core\GraphQL\EntitySchemaFactory;
+use TYPO3\CMS\Core\Cache\CacheManager;
 use TYPO3\CMS\Core\Configuration\MetaModel\EntityRelationMapFactory;
 use TYPO3\CMS\Core\Context\Context;
+use TYPO3\CMS\Core\GraphQL\EntitySchemaFactory;
 use TYPO3\CMS\Core\Utility\GeneralUtility;
 
 class EntityReader implements \TYPO3\CMS\Core\SingletonInterface
@@ -41,17 +42,20 @@ class EntityReader implements \TYPO3\CMS\Core\SingletonInterface
         }
     }
 
-    public function execute(string $query, array $variables = [], array $bindings = [], Context $context = null): array
+    public function execute(string $query, array $bindings = [], Context $context = null): array
     {
+        $cache = GeneralUtility::makeInstance(CacheManager::class)->getCache('gql');
+        $cache->flush();
+
         return GraphQL::executeQuery(
             self::$entitySchema,
             $query,
             null,
             [
-                'bindings' => $bindings,
+                'cache' => $cache,
                 'context' => $context
             ],
-            $variables,
+            $bindings,
             null,
             null,
             GraphQL::getStandardValidationRules()

@@ -39,15 +39,17 @@ class PassiveOneToManyEntityRelationResolver extends AbstractPassiveEntityRelati
         return true;
     }
 
-    protected function fetchData(array $row)
+    protected function fetchData(array $row, array $data): array
     {
-        parent::fetchData($row);
+        $data = parent::fetchData($row, $data);
 
         $propertyConfiguration = $this->getPropertyDefinition()->getConfiguration();
 
         if (isset($propertyConfiguration['config']['symmetric_field'])) {
-            $this->result[$row[$propertyConfiguration['config']['symmetric_field']]][] = $row;
+            $data[$row[$propertyConfiguration['config']['symmetric_field']]][] = $row;
         }
+
+        return $data;
     }
 
     protected function getTable(): string
@@ -71,9 +73,9 @@ class PassiveOneToManyEntityRelationResolver extends AbstractPassiveEntityRelati
         return $activeRelation->getTo()->getName();
     }
 
-    protected function getCondition(QueryBuilder $builder, ResolveInfo $info)
+    protected function getCondition(array $keys, QueryBuilder $builder, ResolveInfo $info): array
     {
-        $condition = parent::getCondition($builder, $info);
+        $condition = parent::getCondition($keys, $builder, $info);
 
         $propertyConfiguration = $this->getPropertyDefinition()->getConfiguration();
 
