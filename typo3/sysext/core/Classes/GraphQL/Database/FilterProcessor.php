@@ -3,8 +3,9 @@ declare(strict_types = 1);
 namespace TYPO3\CMS\Core\GraphQL\Database;
 
 use GraphQL\Type\Definition\ResolveInfo;
+use Hoa\Compiler\Llk\TreeNode;
 use TYPO3\CMS\Core\Database\Query\QueryBuilder;
-use TYPO3\CMS\Core\GraphQL\FilterParser;
+use TYPO3\CMS\Core\GraphQL\FilterExpressionParser;
 
 /*
  * This file is part of the TYPO3 CMS project.
@@ -21,34 +22,34 @@ use TYPO3\CMS\Core\GraphQL\FilterParser;
 
 class FilterProcessor
 {
-    protected const OPERATOR_MAPPING =  [
-        'and' => 'andX',
-        'or' => 'orX',
-        'in' => 'in',
-        '=' => 'eq',
-        '!=' => 'neq',
-        '<' => 'lt',
-        '>' => 'gt',
-        '<=' => 'gte',
-        '>=' => 'lte'
+    /**
+     * @var array
+     */
+    protected const OPERATOR_MAPPING = [
+        '#and' => ['andX', 'orX'],
+        '#or' => ['orX', 'andX'],
+        '#in' => ['in', 'notIn'],
+        '#equals' => ['eq', 'neq'],
+        '#not_equals' => ['neq', 'eq'],
+        '#less_than' => ['lt', 'gte'],
+        '#greater_than' => ['gt', 'lte'],
+        '#greater_than_equals' => ['gte', 'lt'],
+        '#less_than_equals' => ['lte', 'gt']
     ];
 
-    protected const NEGATED_OPERATOR_MAPPING = [
-        'and' => 'orX',
-        'or' => 'andX',
-        'in' => 'notIn',
-        '=' => 'neq',
-        '!=' => 'eq',
-        '<' => 'gte',
-        '>' => 'lte',
-        '<=' => 'lt',
-        '>=' => 'gt'
-    ];
-
+    /**
+     * @var ResolveInfo
+     */
     protected $info = null;
 
+    /**
+     * @var QueryBuilder
+     */
     protected $builder = null;
 
+    /**
+     * @var TreeNode
+     */
     protected $node = null;
 
     public function __construct(ResolveInfo $info, QueryBuilder $builder)
@@ -56,10 +57,12 @@ class FilterProcessor
         $this->info = $info;
         $this->builder = $builder;
 
-        foreach ($this->info->operation->selectionSet->selections[0]->arguments as $argument) {
+        $arguments = $this->info->operation->selectionSet->selections[0]->arguments;
+
+        foreach ($arguments as $argument) {
             if ($argument->name->value === 'filter') {
-                $this->node = $argument->value->kind === 'StringValue'
-                    ? FilterParser::parse($argument->value->value) : $argument->value->value;
+                $value = $argument->value;
+                $this->node = $value->kind === 'StringValue' ? FilterExpressionParser::parse($value->value) : $value->value;
                 break;
             }
         }
@@ -67,68 +70,117 @@ class FilterProcessor
 
     public function process()
     {
-        return $this->node !== null ? $this->processPredicate($this->node) : null;
+        return $this->node !== null ? $this->processNode($this->node->getChild(0)) : null;
     }
 
-    protected function processPredicate($node, $negate = false)
+    /**
+     * @todo Use visitor pattern.
+     */
+    protected function processNode(TreeNode $node, $negate = false)
     {
-        $operator = $negate ? self::NEGATED_OPERATOR_MAPPING : self::OPERATOR_MAPPING;
+        if ($this->isNullComparison($node)) {
+            $field = $node->getChild(0)->isToken() ? $node->getChild(1) : $node->getChild(0);
+            $operation = $node->getId() === '#equals' && !$negate ? 'isNull' : 'isNotNull';
 
-        if ($node['right']['type'] === 'none' && ($node['operator'] === '=' || $node['operator'] === '!=')) {
-            return $this->builder->expr()->{$node['operator'] === '=' && !$negate ? 'isNull' : 'isNotNull'}(
-                $this->processPath($node['left'])
+            return $this->builder->expr()->{$operation}($this->processField($field));
+        } else if ($this->isBinaryLogicalOperation($node)) {
+            $left = $node->getChild(0);
+            $right = $node->getChild(1);
+
+            return $this->builder->expr()->{self::OPERATOR_MAPPING[$node->getId()][$negate ? 1 : 0]}(
+                $this->{'process'.$this->getType($left)}($left, $negate),
+                $this->{'process'.$this->getType($right)}($right, $negate)
             );
-        } else if (array_key_exists($node['operator'], $operator)) {
-            if ($node['operator'] === 'and' || $node['operator'] === 'or') {
-                return $this->builder->expr()->{$operator[$node['operator']]}(
-                    $this->{'process'.ucfirst($node['left']['type'])}($node['left'], $negate),
-                    $this->{'process'.ucfirst($node['right']['type'])}($node['right'], $negate)
-                );
-            } else {
-                return $this->builder->expr()->{$operator[$node['operator']]}(
-                    $this->processPath($node['left']),
-                    $this->{'process'.ucfirst($node['right']['type'])}($node['right'])
-                );
-            }
-        } else if($node['operator'] === 'not') {
-            return $this->processPredicate($node['left'], true);
-        } else {
-            throw new \Exception('Unkown operand \'' . $node['operator'] . '\'');
+        } else if ($this->isComparison($node)) {
+            $field = $node->getChild($node->getChild(0)->getId() === '#field' ? 0 : 1);
+            $any = $node->getChild($node->getChild(0)->getId() !== '#field' ? 0 : 1);
+
+            return $this->builder->expr()->{self::OPERATOR_MAPPING[$node->getId()][$negate ? 1 : 0]}(
+                $this->processField($field),
+                $this->{'process'.$this->getType($any)}($any)
+            );
+        } else if ($this->isNegation($node)) {
+            return $this->processNode($node->getChildren()[0], true);
         }
+
+        throw new \Exception(sprintf('Unkown expression %s', $node->getId()));
     }
 
-    protected function processPath(array $node)
+    protected function processField(TreeNode $node)
     {
-        return implode('.', $node['segments']);
+        $path = $node->getChild($node->getChild(0)->getId() === '#path' ? 0 : 1);
+
+        return implode('.', array_map(function(TreeNode $node) {
+            return $node->getValueValue();
+        }, $path->getChildren()));
     }
 
-    protected function processInteger(array $node)
+    protected function processInteger(TreeNode $node)
     {
-        return $this->builder->createNamedParameter($node['value'], \PDO::PARAM_INT);
+        return $this->builder->createNamedParameter($node->getValueValue(), \PDO::PARAM_INT);
     }
 
-    protected function processString(array $node)
+    protected function processString(TreeNode $node)
     {
-        return $this->builder->createNamedParameter($node['value'], \PDO::PARAM_STR);
+        return $this->builder->createNamedParameter(trim($node->getValueValue(), '`'), \PDO::PARAM_STR);
     }
 
-    protected function processBoolean(array $node)
+    protected function processBoolean(TreeNode $node)
     {
-        return $this->builder->createNamedParameter($node['value'], \PDO::PARAM_BOOL);
+        return $this->builder->createNamedParameter($node->getValueValue(), \PDO::PARAM_BOOL);
     }
 
-    protected function processFloat(array $node)
+    protected function processFloat(TreeNode $node)
     {
-        return $this->builder->createNamedParameter($node['value'], \PDO::PARAM_STR);
+        return $this->builder->createNamedParameter($node->getValueValue(), \PDO::PARAM_STR);
     }
 
-    protected function processNone(array $node)
+    protected function processNone(TreeNode $node)
     {
         return 'NULL';
     }
 
-    protected function processParameter(array $node)
+    protected function processParameter(TreeNode $node)
     {
         // ...
+    }
+
+    protected function isBinaryLogicalOperation(TreeNode $node)
+    {
+        return !$node->isToken() && ($node->getId() === '#and' || $node->getId() === '#or');
+    }
+
+    protected function isComparison(TreeNode $node)
+    {
+        return !$node->isToken() && in_array($node->getId(), [
+            '#equals', '#not_equals',
+            '#greater_than', '#less_than',
+            '#greater_than_equals', '#less_than_equals'
+        ]);
+    }
+
+    protected function isNullComparison(TreeNode $node)
+    {
+        if ($node->isToken() || $node->getId() !== '#equals' && $node->getId() !== '#not_equals') {
+            return false;
+        }
+
+        if (count(array_filter($node->getChildren(), function(TreeNode $node) {
+            return $node->isToken() && $node->getValueToken() === 'null';
+        })) !== 1) {
+            return false;
+        }
+
+        return true;
+    }
+
+    protected function isNegation(TreeNode $node)
+    {
+        return !$node->isToken() && $node->getId() === '#not';
+    }
+
+    protected function getType(TreeNode $node): string
+    {
+        return $node->isToken() ? ucfirst($node->getValueToken()) : 'Node';
     }
 }

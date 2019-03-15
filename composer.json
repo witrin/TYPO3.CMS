@@ -43,6 +43,7 @@
 		"doctrine/instantiator": "^1.1",
 		"doctrine/lexer": "^1.0",
 		"guzzlehttp/guzzle": "^6.3.0",
+		"hoa/compiler": "~3.0",
 		"mso/idna-convert": "^1.1.0",
 		"nikic/php-parser": "^4.0",
 		"phpdocumentor/reflection-docblock": "^4.3",
