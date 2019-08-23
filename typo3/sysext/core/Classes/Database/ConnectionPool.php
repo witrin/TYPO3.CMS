@@ -18,6 +18,7 @@ namespace TYPO3\CMS\Core\Database;
 use Doctrine\DBAL\DriverManager;
 use Doctrine\DBAL\Events;
 use Doctrine\DBAL\Types\Type;
+use TYPO3\CMS\Core\Context\Context;
 use TYPO3\CMS\Core\Database\Query\QueryBuilder;
 use TYPO3\CMS\Core\Database\Schema\EventListener\SchemaAlterTableListener;
 use TYPO3\CMS\Core\Database\Schema\EventListener\SchemaColumnDefinitionListener;
@@ -194,9 +195,10 @@ class ConnectionPool
      * complex SQL queries using and object oriented approach.
      *
      * @param string $tableName
+     * @param Context|null $context
      * @return QueryBuilder
      */
-    public function getQueryBuilderForTable(string $tableName): QueryBuilder
+    public function getQueryBuilderForTable(string $tableName, ?Context $context = null): QueryBuilder
     {
         if (empty($tableName)) {
             throw new \UnexpectedValueException(
@@ -205,7 +207,7 @@ class ConnectionPool
             );
         }
 
-        return $this->getConnectionForTable($tableName)->createQueryBuilder();
+        return $this->getConnectionForTable($tableName)->createQueryBuilder($context);
     }
 
     /**

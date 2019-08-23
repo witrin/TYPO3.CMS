@@ -162,4 +162,29 @@ class Context implements SingletonInterface
     {
         $this->aspects[$name] = $aspect;
     }
+
+    /**
+     * Remove an aspect by it's registered name
+     *
+     * @param string $name
+     * @throws AspectNotFoundException
+     */
+    public function removeAspect(string $name): void
+    {
+        if (!$this->hasAspect($name)) {
+            throw new AspectNotFoundException('No aspect named "' . $name . '" found.', 1557172429);
+        }
+
+        unset($this->aspects[$name]);
+    }
+
+    /**
+     * Returns all aspects set be constructor or via setAspect()
+     *
+     * @return array
+     */
+    public function getAllAspects(): array
+    {
+        return $this->aspects;
+    }
 }

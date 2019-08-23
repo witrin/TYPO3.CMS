@@ -1,5 +1,6 @@
 <?php
 declare(strict_types = 1);
+
 namespace TYPO3\CMS\Core\Context;
 
 /*
@@ -18,6 +19,7 @@ namespace TYPO3\CMS\Core\Context;
 use TYPO3\CMS\Core\Authentication\AbstractUserAuthentication;
 use TYPO3\CMS\Core\Authentication\BackendUserAuthentication;
 use TYPO3\CMS\Core\Context\Exception\AspectPropertyNotFoundException;
+use TYPO3\CMS\Core\Database\Query\Restriction\FrontendGroupRestriction;
 use TYPO3\CMS\Core\Utility\GeneralUtility;
 use TYPO3\CMS\Frontend\Authentication\FrontendUserAuthentication;
 
@@ -32,7 +34,7 @@ use TYPO3\CMS\Frontend\Authentication\FrontendUserAuthentication;
  * - groupIds (Array of Ids)
  * - groupNames
  */
-class UserAspect implements AspectInterface
+class UserAspect implements AspectInterface, RestrictionAwareInterface
 {
     /**
      * @var AbstractUserAuthentication
@@ -89,7 +91,10 @@ class UserAspect implements AspectInterface
             case 'groupNames':
                 return $this->getGroupNames();
         }
-        throw new AspectPropertyNotFoundException('Property "' . $name . '" not found in Aspect "' . __CLASS__ . '".', 1529996567);
+        throw new AspectPropertyNotFoundException(
+            'Property "' . $name . '" not found in Aspect "' . __CLASS__ . '".',
+            1529996567
+        );
     }
 
     /**
@@ -183,5 +188,20 @@ class UserAspect implements AspectInterface
             return is_array($this->user->user ?? null) || implode(',', $groups) !== '0,-1';
         }
         return $this->isLoggedIn();
+    }
+
+    public function resolveRestrictions(): array
+    {
+        $restrictions = [];
+
+        if ($this->user instanceof FrontendUserAuthentication) {
+            $restrictions[] = GeneralUtility::makeInstance(FrontendGroupRestriction::class, $this->getGroupIds());
+        }
+
+        if ($this->user instanceof BackendUserAuthentication) {
+            // TODO: do we need a new BackendGroupRestriction here?
+        }
+
+        return $restrictions;
     }
 }

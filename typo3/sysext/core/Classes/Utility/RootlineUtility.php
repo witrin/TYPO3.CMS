@@ -17,6 +17,8 @@ namespace TYPO3\CMS\Core\Utility;
 use Doctrine\DBAL\DBALException;
 use Doctrine\DBAL\FetchMode;
 use TYPO3\CMS\Core\Context\Context;
+use TYPO3\CMS\Core\Context\LanguageAspect;
+use TYPO3\CMS\Core\Context\UserAspect;
 use TYPO3\CMS\Core\Database\ConnectionPool;
 use TYPO3\CMS\Core\Database\Query\QueryBuilder;
 use TYPO3\CMS\Core\Database\Query\Restriction\DeletedRestriction;
@@ -135,6 +137,15 @@ class RootlineUtility
         if (!($context instanceof Context)) {
             $context = GeneralUtility::makeInstance(Context::class);
         }
+
+        if (!$context->hasAspect('language')) {
+            $context->setAspect('language', new LanguageAspect());
+        }
+
+        if (!$context->hasAspect('frontend.user')) {
+            $context->setAspect('frontend.user', new UserAspect());
+        }
+
         $this->context = $context;
         $this->pageRepository = GeneralUtility::makeInstance(PageRepository::class, $context);
 

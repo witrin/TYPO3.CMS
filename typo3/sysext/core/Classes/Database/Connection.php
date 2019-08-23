@@ -23,8 +23,10 @@ use Doctrine\DBAL\Platforms\PostgreSqlPlatform;
 use Doctrine\DBAL\Platforms\SQLServer2012Platform;
 use Psr\Log\LoggerAwareInterface;
 use Psr\Log\LoggerAwareTrait;
+use TYPO3\CMS\Core\Context\Context;
 use TYPO3\CMS\Core\Database\Query\Expression\ExpressionBuilder;
 use TYPO3\CMS\Core\Database\Query\QueryBuilder;
+use TYPO3\CMS\Core\Database\Query\Restriction\ContextRestrictionResolver;
 use TYPO3\CMS\Core\Utility\GeneralUtility;
 
 class Connection extends \Doctrine\DBAL\Connection implements LoggerAwareInterface
@@ -106,11 +108,16 @@ class Connection extends \Doctrine\DBAL\Connection implements LoggerAwareInterfa
     /**
      * Creates a new instance of a SQL query builder.
      *
+     * @param Context|null $context
      * @return \TYPO3\CMS\Core\Database\Query\QueryBuilder
      */
-    public function createQueryBuilder(): QueryBuilder
+    public function createQueryBuilder(?Context $context = null): QueryBuilder
     {
-        return GeneralUtility::makeInstance(QueryBuilder::class, $this);
+        return GeneralUtility::makeInstance(
+            QueryBuilder::class,
+            $this,
+            ContextRestrictionResolver::resolveRestrictions($context)
+        );
     }
 
     /**

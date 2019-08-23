@@ -16,6 +16,9 @@ namespace TYPO3\CMS\Core\Context;
  */
 
 use TYPO3\CMS\Core\Context\Exception\AspectPropertyNotFoundException;
+use TYPO3\CMS\Core\Database\Query\Restriction\DeletedRestriction;
+use TYPO3\CMS\Core\Database\Query\Restriction\HiddenRestriction;
+use TYPO3\CMS\Core\Utility\GeneralUtility;
 
 /**
  * The aspect contains whether to show hidden pages, records (content) or even deleted records.
@@ -25,7 +28,7 @@ use TYPO3\CMS\Core\Context\Exception\AspectPropertyNotFoundException;
  * - includeHiddenContent
  * - includeDeletedRecords
  */
-class VisibilityAspect implements AspectInterface
+class VisibilityAspect implements AspectInterface, RestrictionAwareInterface
 {
     /**
      * @var bool
@@ -87,5 +90,20 @@ class VisibilityAspect implements AspectInterface
     public function includeDeletedRecords(): bool
     {
         return $this->includeDeletedRecords;
+    }
+
+    public function resolveRestrictions(): array
+    {
+        $restrictions = [];
+
+        if ($this->includeHiddenPages || $this->includeHiddenContent) {
+            $restrictions[] = GeneralUtility::makeInstance(HiddenRestriction::class);
+        }
+
+        if ($this->includeDeletedRecords) {
+            $restrictions[] = GeneralUtility::makeInstance(DeletedRestriction::class);
+        }
+
+        return $restrictions;
     }
 }

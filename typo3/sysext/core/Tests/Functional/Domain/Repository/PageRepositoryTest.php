@@ -17,6 +17,7 @@ namespace TYPO3\CMS\Core\Tests\Functional\Domain\Repository;
 use Prophecy\Argument;
 use TYPO3\CMS\Core\Context\Context;
 use TYPO3\CMS\Core\Context\LanguageAspect;
+use TYPO3\CMS\Core\Context\VisibilityAspect;
 use TYPO3\CMS\Core\Context\WorkspaceAspect;
 use TYPO3\CMS\Core\Database\ConnectionPool;
 use TYPO3\CMS\Core\Domain\Repository\PageRepository;
@@ -83,7 +84,9 @@ class PageRepositoryTest extends \TYPO3\TestingFramework\Core\Functional\Functio
     public function getMenuPageOverlay()
     {
         $subject = new PageRepository(new Context([
-            'language' => new LanguageAspect(1)
+            'language' => new LanguageAspect(1),
+            'workspace' => new WorkspaceAspect(),
+            'visibility' => new VisibilityAspect(),
         ]));
 
         $rows = $subject->getMenu([2, 3], 'uid, title');
@@ -153,7 +156,9 @@ class PageRepositoryTest extends \TYPO3\TestingFramework\Core\Functional\Functio
     public function getPagesOverlayByIdSingle()
     {
         $subject = new PageRepository(new Context([
-            'language' => new LanguageAspect(1)
+            'language' => new LanguageAspect(1),
+            'workspace' => new WorkspaceAspect(),
+            'visibility' => new VisibilityAspect(),
         ]));
         $rows = $subject->getPagesOverlay([1]);
         $this->assertIsArray($rows);
@@ -173,7 +178,9 @@ class PageRepositoryTest extends \TYPO3\TestingFramework\Core\Functional\Functio
     public function getPagesOverlayByIdMultiple()
     {
         $subject = new PageRepository(new Context([
-            'language' => new LanguageAspect(1)
+            'language' => new LanguageAspect(1),
+            'workspace' => new WorkspaceAspect(),
+            'visibility' => new VisibilityAspect(),
         ]));
         $rows = $subject->getPagesOverlay([1, 5]);
         $this->assertIsArray($rows);
@@ -200,7 +207,9 @@ class PageRepositoryTest extends \TYPO3\TestingFramework\Core\Functional\Functio
     public function getPagesOverlayByIdMultipleSomeNotOverlaid()
     {
         $subject = new PageRepository(new Context([
-            'language' => new LanguageAspect(1)
+            'language' => new LanguageAspect(1),
+            'workspace' => new WorkspaceAspect(),
+            'visibility' => new VisibilityAspect(),
         ]));
         $rows = $subject->getPagesOverlay([1, 4, 5, 8]);
         $this->assertIsArray($rows);
@@ -226,7 +235,9 @@ class PageRepositoryTest extends \TYPO3\TestingFramework\Core\Functional\Functio
         $origRow = $subject->getPage(1);
 
         $subject = new PageRepository(new Context([
-            'language' => new LanguageAspect(1)
+            'language' => new LanguageAspect(1),
+            'workspace' => new WorkspaceAspect(),
+            'visibility' => new VisibilityAspect(),
         ]));
         $rows = $subject->getPagesOverlay([$origRow]);
         $this->assertIsArray($rows);
@@ -250,7 +261,9 @@ class PageRepositoryTest extends \TYPO3\TestingFramework\Core\Functional\Functio
         $orig2 = $subject->getPage(5);
 
         $subject = new PageRepository(new Context([
-            'language' => new LanguageAspect(1)
+            'language' => new LanguageAspect(1),
+            'workspace' => new WorkspaceAspect(),
+            'visibility' => new VisibilityAspect(),
         ]));
         $rows = $subject->getPagesOverlay([1 => $orig1, 5 => $orig2]);
         $this->assertIsArray($rows);
@@ -282,7 +295,9 @@ class PageRepositoryTest extends \TYPO3\TestingFramework\Core\Functional\Functio
         $orig3 = $subject->getPage(9);
 
         $subject = new PageRepository(new Context([
-            'language' => new LanguageAspect(1)
+            'language' => new LanguageAspect(1),
+            'workspace' => new WorkspaceAspect(),
+            'visibility' => new VisibilityAspect(),
         ]));
         $rows = $subject->getPagesOverlay([$orig1, $orig2, $orig3]);
         $this->assertIsArray($rows);
@@ -332,7 +347,9 @@ class PageRepositoryTest extends \TYPO3\TestingFramework\Core\Functional\Functio
     {
         $workspaceId = 2;
         $subject = new PageRepository(new Context([
-            'workspace' => new WorkspaceAspect($workspaceId)
+            'language' => new LanguageAspect(1),
+            'workspace' => new WorkspaceAspect($workspaceId),
+            'visibility' => new VisibilityAspect(),
         ]));
 
         $connection = GeneralUtility::makeInstance(ConnectionPool::class)->getConnectionForTable('pages');
@@ -386,7 +403,9 @@ class PageRepositoryTest extends \TYPO3\TestingFramework\Core\Functional\Functio
         $wsid = 987654321;
         // simulate calls from \TYPO3\CMS\Frontend\Controller\TypoScriptFrontendController->fetch_the_id()
         $subject = new PageRepository(new Context([
-            'workspace' => new WorkspaceAspect($wsid)
+            'language' => new LanguageAspect(1),
+            'workspace' => new WorkspaceAspect($wsid),
+            'visibility' => new VisibilityAspect(),
         ]));
 
         $pageRec = $subject->getPage(11);
@@ -407,7 +426,9 @@ class PageRepositoryTest extends \TYPO3\TestingFramework\Core\Functional\Functio
 
         // simulate calls from \TYPO3\CMS\Frontend\Controller\TypoScriptFrontendController->fetch_the_id()
         $subject = new PageRepository(new Context([
-            'workspace' => new WorkspaceAspect($wsid)
+            'language' => new LanguageAspect(1),
+            'workspace' => new WorkspaceAspect($wsid),
+            'visibility' => new VisibilityAspect(),
         ]));
 
         $pageRec = $subject->getWorkspaceVersionOfRecord($wsid, 'pages', 11);
@@ -464,7 +485,9 @@ class PageRepositoryTest extends \TYPO3\TestingFramework\Core\Functional\Functio
         ];
 
         $subject = new PageRepository(new Context([
-            'workspace' => new WorkspaceAspect(13)
+            'language' => new LanguageAspect(1),
+            'workspace' => new WorkspaceAspect(13),
+            'visibility' => new VisibilityAspect(),
         ]));
 
         $conditions = $subject->enableFields($table);
@@ -495,7 +518,9 @@ class PageRepositoryTest extends \TYPO3\TestingFramework\Core\Functional\Functio
         ];
 
         $subject = new PageRepository(new Context([
-            'workspace' => new WorkspaceAspect(2)
+            'language' => new LanguageAspect(1),
+            'workspace' => new WorkspaceAspect(2),
+            'visibility' => new VisibilityAspect(),
         ]));
 
         $conditions = $subject->enableFields($table);

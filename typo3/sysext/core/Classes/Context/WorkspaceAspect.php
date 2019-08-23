@@ -16,6 +16,8 @@ namespace TYPO3\CMS\Core\Context;
  */
 
 use TYPO3\CMS\Core\Context\Exception\AspectPropertyNotFoundException;
+use TYPO3\CMS\Core\Database\Query\Restriction\WorkspaceRestriction;
+use TYPO3\CMS\Core\Utility\GeneralUtility;
 
 /**
  * The aspect contains information about the currently accessed workspace.
@@ -25,7 +27,7 @@ use TYPO3\CMS\Core\Context\Exception\AspectPropertyNotFoundException;
  * - isLive
  * - isOffline
  */
-class WorkspaceAspect implements AspectInterface
+class WorkspaceAspect implements AspectInterface, RestrictionAwareInterface
 {
     /**
      * @var int
@@ -78,5 +80,12 @@ class WorkspaceAspect implements AspectInterface
     public function isLive(): bool
     {
         return $this->workspaceId === 0;
+    }
+
+    public function resolveRestrictions(): array
+    {
+        return [
+            GeneralUtility::makeInstance(WorkspaceRestriction::class, $this->getId())
+        ];
     }
 }
