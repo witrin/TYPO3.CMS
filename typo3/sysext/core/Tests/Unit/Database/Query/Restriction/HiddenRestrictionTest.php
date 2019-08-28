@@ -33,4 +33,40 @@ class HiddenRestrictionTest extends AbstractRestrictionTestCase
         $expression = $subject->buildExpression(['aTable' => 'aTable'], $this->expressionBuilder);
         $this->assertSame('"aTable"."myHiddenField" = 0', (string)$expression);
     }
+
+    /**
+     * @return array
+     */
+    public function recordRestrictionIsCorrectDataProvider(): array
+    {
+        return [
+            'hidden=0' => [
+                ['myHiddenField' => 0],
+                false,
+            ],
+            'hidden=1' => [
+                ['myHiddenField' => 1],
+                true,
+            ]
+        ];
+    }
+
+    /**
+     * @param array $record
+     * @param bool $expectation
+     * @return void
+     *
+     * @test
+     * @dataProvider recordRestrictionIsCorrectDataProvider
+     */
+    public function recordRestrictionIsCorrect(array $record, bool $expectation): void
+    {
+        $GLOBALS['TCA']['aTable']['ctrl'] = [
+            'enablecolumns' => [
+                'disabled' => 'myHiddenField',
+            ],
+        ];
+        $restriction = new HiddenRestriction();
+        static::assertSame($expectation, $restriction->isRecordRestricted('aTable', $record));
+    }
 }

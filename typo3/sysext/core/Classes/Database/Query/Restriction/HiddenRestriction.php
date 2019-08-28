@@ -21,7 +21,7 @@ use TYPO3\CMS\Core\Database\Query\Expression\ExpressionBuilder;
 /**
  * Restriction to filter records that have been marked as hidden
  */
-class HiddenRestriction implements QueryRestrictionInterface
+class HiddenRestriction implements QueryRestrictionInterface, RecordRestrictionInterface
 {
     /**
      * Main method to build expressions for given tables
@@ -44,5 +44,14 @@ class HiddenRestriction implements QueryRestrictionInterface
             }
         }
         return $expressionBuilder->andX(...$constraints);
+    }
+
+    public function isRecordRestricted(string $tableName, array $record): bool
+    {
+        if (!isset($GLOBALS['TCA'][$tableName]['ctrl']['enablecolumns']['disabled'])) {
+            return false;
+        }
+        $fieldName = $GLOBALS['TCA'][$tableName]['ctrl']['enablecolumns']['disabled'];
+        return !empty($record[$fieldName]);
     }
 }

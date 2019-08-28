@@ -31,4 +31,38 @@ class DeletedRestrictionTest extends AbstractRestrictionTestCase
         $expression = $subject->buildExpression(['aTable' => 'aTable'], $this->expressionBuilder);
         $this->assertSame('"aTable"."deleted" = 0', (string)$expression);
     }
+
+    /**
+     * @return array
+     */
+    public function recordRestrictionIsCorrectDataProvider(): array
+    {
+        return [
+            'deleted=0' => [
+                ['deleted' => 0],
+                false,
+            ],
+            'deleted=1' => [
+                ['deleted' => 1],
+                true,
+            ]
+        ];
+    }
+
+    /**
+     * @param array $record
+     * @param bool $expectation
+     * @return void
+     *
+     * @test
+     * @dataProvider recordRestrictionIsCorrectDataProvider
+     */
+    public function recordRestrictionIsCorrect(array $record, bool $expectation): void
+    {
+        $GLOBALS['TCA']['aTable']['ctrl'] = [
+            'delete' => 'deleted',
+        ];
+        $restriction = new DeletedRestriction();
+        static::assertSame($expectation, $restriction->isRecordRestricted('aTable', $record));
+    }
 }

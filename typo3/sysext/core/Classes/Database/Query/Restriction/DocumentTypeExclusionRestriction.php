@@ -21,7 +21,7 @@ use TYPO3\CMS\Core\Database\Query\Expression\ExpressionBuilder;
 /**
  * Restriction to make queries for pages doktype-aware.
  */
-class DocumentTypeExclusionRestriction implements QueryRestrictionInterface
+class DocumentTypeExclusionRestriction implements QueryRestrictionInterface, RecordRestrictionInterface
 {
     /**
      * @var int
@@ -56,5 +56,10 @@ class DocumentTypeExclusionRestriction implements QueryRestrictionInterface
         }
 
         return $expressionBuilder->andX(...$constraints);
+    }
+
+    public function isRecordRestricted(string $tableName, array $record): bool
+    {
+        return (int)$record['doktop'] === $this->doktype;
     }
 }
