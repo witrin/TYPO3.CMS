@@ -17,7 +17,6 @@ namespace TYPO3\CMS\Core\Database\Query;
 
 use Doctrine\DBAL\Platforms\SQLServerPlatform;
 use Doctrine\DBAL\Query\Expression\CompositeExpression;
-use Doctrine\DBAL\Driver\Statement;
 use TYPO3\CMS\Core\Context\Context;
 use TYPO3\CMS\Core\Database\Connection;
 use TYPO3\CMS\Core\Database\Query\Expression\ExpressionBuilder;
@@ -192,17 +191,23 @@ class QueryBuilder
             return $this->concreteQueryBuilder->execute();
         }
 
-        // Set additional query restrictions
-        $originalWhereConditions = $this->addAdditionalWhereConditions();
-
-        $result = $this->concreteQueryBuilder->execute();
-        if ($this->restrictionContainer instanceof ContextRestrictionContainer && $result instanceof Statement) {
-            $result = new ContextAwareStatement($result, $this->restrictionContainer->getContext());
+        if (!$this->restrictionContainer instanceof ContextRestrictionContainer) {
+            // Set additional query restrictions
+            $originalWhereConditions = $this->addAdditionalWhereConditions();
+            $result = $this->concreteQueryBuilder->execute();
+            // Restore the original query conditions in case the user keeps
+            // on modifying the state.
+            $this->concreteQueryBuilder->add('where', $originalWhereConditions, false);
+        } else {
+            // remove all restrictions, but keep DeletedRestriction (if defined)
+            // @todo introduce ExistenceAwareRestriction (or something like this)
+            $restrictions = clone $this->restrictionContainer;
+            $restrictions->filterByType(\TYPO3\CMS\Core\Database\Query\Restriction\DeletedRestriction::class);
+            // Set additional query restrictions
+            $originalWhereConditions = $this->addAdditionalWhereConditions($restrictions);
+            $result = new ContextAwareStatement($this->concreteQueryBuilder->execute(), $this);
+            $this->concreteQueryBuilder->add('where', $originalWhereConditions, false);
         }
-
-        // Restore the original query conditions in case the user keeps
-        // on modifying the state.
-        $this->concreteQueryBuilder->add('where', $originalWhereConditions, false);
 
         return $result;
     }
@@ -1106,12 +1111,17 @@ class QueryBuilder
      * to the current query and return the original set of conditions so that they
      * can be restored after the query has been built/executed.
      *
+     * @param null|QueryRestrictionContainerInterface $restrictions
      * @return \Doctrine\DBAL\Query\Expression\CompositeExpression|mixed
      */
-    protected function addAdditionalWhereConditions()
+    protected function addAdditionalWhereConditions(QueryRestrictionContainerInterface $restrictions = null)
     {
+        if ($restrictions === null) {
+            $restrictions = $this->restrictionContainer;
+        }
+
         $originalWhereConditions = $this->concreteQueryBuilder->getQueryPart('where');
-        $expression = $this->restrictionContainer->buildExpression($this->getQueriedTables(), $this->expr());
+        $expression = $restrictions->buildExpression($this->getQueriedTables(), $this->expr());
         // This check would be obsolete, as the composite expression would not add empty expressions anyway
         // But we keep it here to only clone the previous state, in case we really will change it.
         // Once we remove this state preserving functionality, we can remove the count check here

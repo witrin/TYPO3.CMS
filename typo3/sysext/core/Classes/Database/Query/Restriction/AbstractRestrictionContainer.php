@@ -51,6 +51,19 @@ abstract class AbstractRestrictionContainer implements QueryRestrictionContainer
         return $expressionBuilder->andX(...$constraints);
     }
 
+    public function isRecordRestricted(string $tableName, array $record): bool
+    {
+        foreach ($this->restrictions as $restriction) {
+            if (!$restriction instanceof RecordRestrictionInterface) {
+                continue;
+            }
+            if ($restriction->isRecordRestricted($tableName, $record)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
     /**
      * Removes all restrictions stored within this container
      *
@@ -71,6 +84,18 @@ abstract class AbstractRestrictionContainer implements QueryRestrictionContainer
     public function removeByType(string $restrictionType): QueryRestrictionContainerInterface
     {
         unset($this->restrictions[$restrictionType], $this->enforcedRestrictions[$restrictionType]);
+        return $this;
+    }
+
+    /**
+     * @param string ...$restrictionTypes
+     * @return static
+     */
+    public function filterByType(string ...$restrictionTypes): QueryRestrictionContainerInterface
+    {
+        $filter = array_fill_keys($restrictionTypes, true);
+        $this->restrictions = array_intersect_key($this->restrictions, $filter);
+        $this->enforcedRestrictions = array_intersect_key($this->enforcedRestrictions, $filter);
         return $this;
     }
 

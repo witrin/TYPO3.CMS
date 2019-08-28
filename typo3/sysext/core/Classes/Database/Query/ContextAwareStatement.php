@@ -17,7 +17,7 @@ namespace TYPO3\CMS\Core\Database\Query;
 
 
 use Doctrine\DBAL\Driver\ResultStatement;
-use Doctrine\DBAL\Statement;
+use Doctrine\DBAL\Driver\Statement;
 use PDO;
 use TYPO3\CMS\Core\Database\Query\Restriction\RecordRestrictionInterface;
 
@@ -28,16 +28,6 @@ use TYPO3\CMS\Core\Database\Query\Restriction\RecordRestrictionInterface;
  */
 class ContextAwareStatement implements ResultStatement, \IteratorAggregate
 {
-    /**
-     * @var RecordRestrictionInterface[]
-     */
-    protected $recordRestrictions = [];
-
-    /**
-     * @var RecordAlteringRestrictionInterface[]
-     */
-    protected $alteringRestricionts = [];
-
     /**
      * Contains information on mapping and restrictions.
      *
@@ -56,7 +46,6 @@ class ContextAwareStatement implements ResultStatement, \IteratorAggregate
     {
         $this->stmt = $stmt;
         $this->queryBuilder = $queryBuilder;
-        $restrictions = $this->queryBuilder->getRestrictions();
     }
 
     /**
@@ -102,15 +91,18 @@ class ContextAwareStatement implements ResultStatement, \IteratorAggregate
      */
     public function fetch($fetchMode = null, $cursorOrientation = PDO::FETCH_ORI_NEXT, $cursorOffset = 0)
     {
-        $result = $this->stmt->fetch($fetchMode, $cursorOrientation, $cursorOffset);
-        if (!is_array($result)) {
-            return $result;
-        }
-        foreach ($this->recordRestrictions as $restriction) {
-            if (!$restriction->isRecordRestricted($this->queryBuilder->getQueryPart('from'), $result)) {
-                return false;
+        do {
+            $result = $this->stmt->fetch($fetchMode, $cursorOrientation, $cursorOffset);
+            if (!is_array($result) || !is_object($result)) {
+                return $result;
             }
-        }
+            $result = $this->enrich($result, $fetchMode);
+            $isRestricted = $this->queryBuilder->getRestrictions()->isRecordRestricted(
+                $this->queryBuilder->getQueryPart('from'),
+                $result
+            );
+        // fetch next item, since current one is restricted
+        } while ($isRestricted);
         return $result;
     }
 
@@ -128,5 +120,54 @@ class ContextAwareStatement implements ResultStatement, \IteratorAggregate
     public function fetchColumn($columnIndex = 0)
     {
         return $this->stmt->fetchColumn($columnIndex);
+    }
+
+    /**
+     * @param $result
+     * @param null $fetchMode
+     * @return array|object|\stdClass|bool returns FALSE if could not be enriched
+     */
+    protected function enrich($result, $fetchMode = null)
+    {
+        if (is_array($result)) {
+            return $this->enrichArrayResult($result, $fetchMode);
+        }
+        if ($result instanceof \stdClass) {
+            return $this->enrichObjectResult($result, $fetchMode);
+        }
+        return $this->enrichClassResult($result, $fetchMode);
+    }
+
+    /**
+     * @param array $result
+     * @param null $fetchMode
+     * @return array
+     */
+    protected function enrichArrayResult(array $result, $fetchMode = null)
+    {
+        // todo consider NUMERIC & BOTH
+        return $result;
+    }
+
+    /**
+     * @param \stdClass $result
+     * @param null $fetchMode
+     * @return \stdClass
+     */
+    protected function enrichObjectResult(\stdClass $result, $fetchMode = null)
+    {
+        return $result;
+    }
+
+    /**
+     * @param object $result
+     * @param null $fetchMode
+     * @return object
+     *
+     * @see https://www.php.net/manual/en/pdostatement.fetch.php
+     */
+    protected function enrichClassResult($result, $fetchMode = null)
+    {
+        return $result;
     }
 }
