@@ -60,6 +60,6 @@ class DocumentTypeExclusionRestriction implements QueryRestrictionInterface, Rec
 
     public function isRecordRestricted(string $tableName, array $record): bool
     {
-        return (int)$record['doktop'] === $this->doktype;
+        return (int)$record['doktype'] === $this->doktype;
     }
 }

@@ -17,8 +17,11 @@ namespace TYPO3\CMS\Core\Database\Query;
 
 use Doctrine\DBAL\Platforms\SQLServerPlatform;
 use Doctrine\DBAL\Query\Expression\CompositeExpression;
+use Doctrine\DBAL\Driver\Statement;
+use TYPO3\CMS\Core\Context\Context;
 use TYPO3\CMS\Core\Database\Connection;
 use TYPO3\CMS\Core\Database\Query\Expression\ExpressionBuilder;
+use TYPO3\CMS\Core\Database\Query\Restriction\ContextRestrictionContainer;
 use TYPO3\CMS\Core\Database\Query\Restriction\DefaultRestrictionContainer;
 use TYPO3\CMS\Core\Database\Query\Restriction\QueryRestrictionContainerInterface;
 use TYPO3\CMS\Core\Utility\GeneralUtility;
@@ -64,20 +67,28 @@ class QueryBuilder
     protected $additionalRestrictions;
 
     /**
+     * @var Context|null
+     */
+    protected $context;
+
+    /**
      * Initializes a new QueryBuilder.
      *
      * @param Connection $connection The DBAL Connection.
      * @param QueryRestrictionContainerInterface $restrictionContainer
      * @param \Doctrine\DBAL\Query\QueryBuilder $concreteQueryBuilder
      * @param array $additionalRestrictions
+     * @param Context $context
      */
     public function __construct(
         Connection $connection,
         QueryRestrictionContainerInterface $restrictionContainer = null,
         \Doctrine\DBAL\Query\QueryBuilder $concreteQueryBuilder = null,
-        array $additionalRestrictions = null
+        array $additionalRestrictions = null,
+        Context $context = null
     ) {
         $this->connection = $connection;
+        $this->context = $context;
         $this->additionalRestrictions = $additionalRestrictions ?: $GLOBALS['TYPO3_CONF_VARS']['DB']['additionalQueryRestrictions'] ?? [];
         $this->setRestrictions($restrictionContainer ?: GeneralUtility::makeInstance(DefaultRestrictionContainer::class));
         $this->concreteQueryBuilder = $concreteQueryBuilder ?: GeneralUtility::makeInstance(\Doctrine\DBAL\Query\QueryBuilder::class, $connection);
@@ -173,7 +184,7 @@ class QueryBuilder
     /**
      * Executes this query using the bound parameters and their types.
      *
-     * @return \Doctrine\DBAL\Driver\Statement|int
+     * @return \Doctrine\DBAL\Driver\Statement|ContextAwareStatement|int
      */
     public function execute()
     {
@@ -185,6 +196,9 @@ class QueryBuilder
         $originalWhereConditions = $this->addAdditionalWhereConditions();
 
         $result = $this->concreteQueryBuilder->execute();
+        if ($this->restrictionContainer instanceof ContextRestrictionContainer && $result instanceof Statement) {
+            $result = new ContextAwareStatement($result, $this->restrictionContainer->getContext());
+        }
 
         // Restore the original query conditions in case the user keeps
         // on modifying the state.

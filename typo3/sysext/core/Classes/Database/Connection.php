@@ -26,7 +26,7 @@ use Psr\Log\LoggerAwareTrait;
 use TYPO3\CMS\Core\Context\Context;
 use TYPO3\CMS\Core\Database\Query\Expression\ExpressionBuilder;
 use TYPO3\CMS\Core\Database\Query\QueryBuilder;
-use TYPO3\CMS\Core\Database\Query\Restriction\ContextRestrictionResolver;
+use TYPO3\CMS\Core\Database\Query\Restriction\ContextRestrictionContainer;
 use TYPO3\CMS\Core\Utility\GeneralUtility;
 
 class Connection extends \Doctrine\DBAL\Connection implements LoggerAwareInterface
@@ -116,7 +116,9 @@ class Connection extends \Doctrine\DBAL\Connection implements LoggerAwareInterfa
         return GeneralUtility::makeInstance(
             QueryBuilder::class,
             $this,
-            ContextRestrictionResolver::resolveRestrictions($context)
+            $context ? GeneralUtility::makeInstance(ContextRestrictionContainer::class, $context) : null,
+            null,
+            $context
         );
     }
 

@@ -18,21 +18,33 @@ namespace TYPO3\CMS\Core\Database\Query\Restriction;
 use TYPO3\CMS\Core\Context\Context;
 use TYPO3\CMS\Core\Context\RestrictionAwareInterface;
 
-class ContextRestrictionResolver
+/**
+ * This is the container with restrictions that are added based on the context
+ */
+class ContextRestrictionContainer extends AbstractRestrictionContainer
 {
-    public static function resolveRestrictions(?Context $context = null): ?array
-    {
-        if ($context === null) {
-            return null;
-        }
+    /**
+     * @var Context
+     */
+    protected $context;
 
-        $restrictions = [];
+    /**
+     * Creates instances of restrictions based on the Context
+     * @param Context $context
+     */
+    public function __construct(Context $context)
+    {
         foreach ($context->getAllAspects() as $aspect) {
             if ($aspect instanceof RestrictionAwareInterface) {
-                array_merge($restrictions, $aspect->resolveRestrictions());
+                foreach ($aspect->resolveRestrictions() as $restriction) {
+                    $this->add($restriction);
+                }
             }
         }
+    }
 
-        return $restrictions;
+    public function getContext(): Context
+    {
+        return $this->context;
     }
 }
