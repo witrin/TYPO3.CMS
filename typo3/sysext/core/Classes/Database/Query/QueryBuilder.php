@@ -17,10 +17,8 @@ namespace TYPO3\CMS\Core\Database\Query;
 
 use Doctrine\DBAL\Platforms\SQLServerPlatform;
 use Doctrine\DBAL\Query\Expression\CompositeExpression;
-use TYPO3\CMS\Core\Context\Context;
 use TYPO3\CMS\Core\Database\Connection;
 use TYPO3\CMS\Core\Database\Query\Expression\ExpressionBuilder;
-use TYPO3\CMS\Core\Database\Query\Restriction\ContextRestrictionContainer;
 use TYPO3\CMS\Core\Database\Query\Restriction\DefaultRestrictionContainer;
 use TYPO3\CMS\Core\Database\Query\Restriction\QueryRestrictionContainerInterface;
 use TYPO3\CMS\Core\Utility\GeneralUtility;
@@ -66,28 +64,20 @@ class QueryBuilder
     protected $additionalRestrictions;
 
     /**
-     * @var Context|null
-     */
-    protected $context;
-
-    /**
      * Initializes a new QueryBuilder.
      *
      * @param Connection $connection The DBAL Connection.
      * @param QueryRestrictionContainerInterface $restrictionContainer
      * @param \Doctrine\DBAL\Query\QueryBuilder $concreteQueryBuilder
      * @param array $additionalRestrictions
-     * @param Context $context
      */
     public function __construct(
         Connection $connection,
         QueryRestrictionContainerInterface $restrictionContainer = null,
         \Doctrine\DBAL\Query\QueryBuilder $concreteQueryBuilder = null,
-        array $additionalRestrictions = null,
-        Context $context = null
+        array $additionalRestrictions = null
     ) {
         $this->connection = $connection;
-        $this->context = $context;
         $this->additionalRestrictions = $additionalRestrictions ?: $GLOBALS['TYPO3_CONF_VARS']['DB']['additionalQueryRestrictions'] ?? [];
         $this->setRestrictions($restrictionContainer ?: GeneralUtility::makeInstance(DefaultRestrictionContainer::class));
         $this->concreteQueryBuilder = $concreteQueryBuilder ?: GeneralUtility::makeInstance(\Doctrine\DBAL\Query\QueryBuilder::class, $connection);
@@ -183,7 +173,7 @@ class QueryBuilder
     /**
      * Executes this query using the bound parameters and their types.
      *
-     * @return \Doctrine\DBAL\Driver\Statement|ContextAwareStatement|int
+     * @return \Doctrine\DBAL\Driver\Statement|int
      */
     public function execute()
     {
@@ -191,23 +181,14 @@ class QueryBuilder
             return $this->concreteQueryBuilder->execute();
         }
 
-        if (!$this->restrictionContainer instanceof ContextRestrictionContainer) {
-            // Set additional query restrictions
-            $originalWhereConditions = $this->addAdditionalWhereConditions();
-            $result = $this->concreteQueryBuilder->execute();
-            // Restore the original query conditions in case the user keeps
-            // on modifying the state.
-            $this->concreteQueryBuilder->add('where', $originalWhereConditions, false);
-        } else {
-            // remove all restrictions, but keep DeletedRestriction (if defined)
-            // @todo introduce ExistenceAwareRestriction (or something like this)
-            $restrictions = clone $this->restrictionContainer;
-            $restrictions->filterByType(\TYPO3\CMS\Core\Database\Query\Restriction\DeletedRestriction::class);
-            // Set additional query restrictions
-            $originalWhereConditions = $this->addAdditionalWhereConditions($restrictions);
-            $result = new ContextAwareStatement($this->concreteQueryBuilder->execute(), $this, $this->context);
-            $this->concreteQueryBuilder->add('where', $originalWhereConditions, false);
-        }
+        // Set additional query restrictions
+        $originalWhereConditions = $this->addAdditionalWhereConditions();
+
+        $result = $this->concreteQueryBuilder->execute();
+
+        // Restore the original query conditions in case the user keeps
+        // on modifying the state.
+        $this->concreteQueryBuilder->add('where', $originalWhereConditions, false);
 
         return $result;
     }
@@ -247,7 +228,7 @@ class QueryBuilder
      *
      * @return QueryBuilder This QueryBuilder instance.
      */
-    public function setParameter($key, $value, int $type = null): QueryBuilder
+    public function setParameter($key, $value, int $type = null): self
     {
         $this->concreteQueryBuilder->setParameter($key, $value, $type);
 
@@ -262,7 +243,7 @@ class QueryBuilder
      *
      * @return QueryBuilder This QueryBuilder instance.
      */
-    public function setParameters(array $params, array $types = []): QueryBuilder
+    public function setParameters(array $params, array $types = []): self
     {
         $this->concreteQueryBuilder->setParameters($params, $types);
 
@@ -320,7 +301,7 @@ class QueryBuilder
      *
      * @return QueryBuilder This QueryBuilder instance.
      */
-    public function setFirstResult(int $firstResult): QueryBuilder
+    public function setFirstResult(int $firstResult): self
     {
         $this->concreteQueryBuilder->setFirstResult($firstResult);
 
@@ -345,7 +326,7 @@ class QueryBuilder
      *
      * @return QueryBuilder This QueryBuilder instance.
      */
-    public function setMaxResults(int $maxResults): QueryBuilder
+    public function setMaxResults(int $maxResults): self
     {
         $this->concreteQueryBuilder->setMaxResults($maxResults);
 
@@ -375,7 +356,7 @@ class QueryBuilder
      *
      * @return QueryBuilder This QueryBuilder instance.
      */
-    public function add(string $sqlPartName, $sqlPart, bool $append = false): QueryBuilder
+    public function add(string $sqlPartName, $sqlPart, bool $append = false): self
     {
         $this->concreteQueryBuilder->add($sqlPartName, $sqlPart, $append);
 
@@ -389,7 +370,7 @@ class QueryBuilder
      * @param string $item Will be quoted according to database platform automatically.
      * @return QueryBuilder This QueryBuilder instance.
      */
-    public function count(string $item): QueryBuilder
+    public function count(string $item): self
     {
         $countExpr = $this->getConnection()->getDatabasePlatform()->getCountExpression(
             $item === '*' ? $item : $this->quoteIdentifier($item)
@@ -406,7 +387,7 @@ class QueryBuilder
      * @param string[] $selects
      * @return QueryBuilder This QueryBuilder instance.
      */
-    public function select(string ...$selects): QueryBuilder
+    public function select(string ...$selects): self
     {
         $this->concreteQueryBuilder->select(...$this->quoteIdentifiersForSelect($selects));
 
@@ -420,7 +401,7 @@ class QueryBuilder
      *
      * @return QueryBuilder This QueryBuilder instance.
      */
-    public function addSelect(string ...$selects): QueryBuilder
+    public function addSelect(string ...$selects): self
     {
         $this->concreteQueryBuilder->addSelect(...$this->quoteIdentifiersForSelect($selects));
 
@@ -436,7 +417,7 @@ class QueryBuilder
      * @param string[] $selects Literal SQL expressions to be selected. Warning: No quoting will be done!
      * @return QueryBuilder This QueryBuilder instance.
      */
-    public function selectLiteral(string ...$selects): QueryBuilder
+    public function selectLiteral(string ...$selects): self
     {
         $this->concreteQueryBuilder->select(...$selects);
 
@@ -451,7 +432,7 @@ class QueryBuilder
      * @param string[] $selects Literal SQL expressions to be selected.
      * @return QueryBuilder This QueryBuilder instance.
      */
-    public function addSelectLiteral(string ...$selects): QueryBuilder
+    public function addSelectLiteral(string ...$selects): self
     {
         $this->concreteQueryBuilder->addSelect(...$selects);
 
@@ -469,7 +450,7 @@ class QueryBuilder
      *
      * @return QueryBuilder This QueryBuilder instance.
      */
-    public function delete(string $delete, string $alias = null): QueryBuilder
+    public function delete(string $delete, string $alias = null): self
     {
         $this->concreteQueryBuilder->delete(
             $this->quoteIdentifier($delete),
@@ -488,7 +469,7 @@ class QueryBuilder
      *
      * @return QueryBuilder This QueryBuilder instance.
      */
-    public function update(string $update, string $alias = null): QueryBuilder
+    public function update(string $update, string $alias = null): self
     {
         $this->concreteQueryBuilder->update(
             $this->quoteIdentifier($update),
@@ -506,7 +487,7 @@ class QueryBuilder
      *
      * @return QueryBuilder This QueryBuilder instance.
      */
-    public function insert(string $insert): QueryBuilder
+    public function insert(string $insert): self
     {
         $this->concreteQueryBuilder->insert($this->quoteIdentifier($insert));
 
@@ -522,7 +503,7 @@ class QueryBuilder
      *
      * @return QueryBuilder This QueryBuilder instance.
      */
-    public function from(string $from, string $alias = null): QueryBuilder
+    public function from(string $from, string $alias = null): self
     {
         $this->concreteQueryBuilder->from(
             $this->quoteIdentifier($from),
@@ -542,7 +523,7 @@ class QueryBuilder
      *
      * @return QueryBuilder This QueryBuilder instance.
      */
-    public function join(string $fromAlias, string $join, string $alias, string $condition = null): QueryBuilder
+    public function join(string $fromAlias, string $join, string $alias, string $condition = null): self
     {
         $this->concreteQueryBuilder->innerJoin(
             $this->quoteIdentifier($fromAlias),
@@ -564,7 +545,7 @@ class QueryBuilder
      *
      * @return QueryBuilder This QueryBuilder instance.
      */
-    public function innerJoin(string $fromAlias, string $join, string $alias, string $condition = null): QueryBuilder
+    public function innerJoin(string $fromAlias, string $join, string $alias, string $condition = null): self
     {
         $this->concreteQueryBuilder->innerJoin(
             $this->quoteIdentifier($fromAlias),
@@ -586,7 +567,7 @@ class QueryBuilder
      *
      * @return QueryBuilder This QueryBuilder instance.
      */
-    public function leftJoin(string $fromAlias, string $join, string $alias, string $condition = null): QueryBuilder
+    public function leftJoin(string $fromAlias, string $join, string $alias, string $condition = null): self
     {
         $this->concreteQueryBuilder->leftJoin(
             $this->quoteIdentifier($fromAlias),
@@ -608,7 +589,7 @@ class QueryBuilder
      *
      * @return QueryBuilder This QueryBuilder instance.
      */
-    public function rightJoin(string $fromAlias, string $join, string $alias, string $condition = null): QueryBuilder
+    public function rightJoin(string $fromAlias, string $join, string $alias, string $condition = null): self
     {
         $this->concreteQueryBuilder->rightJoin(
             $this->quoteIdentifier($fromAlias),
@@ -629,7 +610,7 @@ class QueryBuilder
      *
      * @return QueryBuilder This QueryBuilder instance.
      */
-    public function set(string $key, $value, bool $createNamedParameter = true): QueryBuilder
+    public function set(string $key, $value, bool $createNamedParameter = true): self
     {
         $this->concreteQueryBuilder->set(
             $this->quoteIdentifier($key),
@@ -643,10 +624,10 @@ class QueryBuilder
      * Specifies one or more restrictions to the query result.
      * Replaces any previously specified restrictions, if any.
      *
-     * @param mixed $predicates
+     * @param mixed,... $predicates
      * @return QueryBuilder This QueryBuilder instance.
      */
-    public function where(...$predicates): QueryBuilder
+    public function where(...$predicates): self
     {
         $this->concreteQueryBuilder->where(...$predicates);
 
@@ -657,13 +638,13 @@ class QueryBuilder
      * Adds one or more restrictions to the query results, forming a logical
      * conjunction with any previously specified restrictions.
      *
-     * @param mixed $where The query restrictions.
+     * @param mixed,... $where The query restrictions.
      *
      * @return QueryBuilder This QueryBuilder instance.
      *
      * @see where()
      */
-    public function andWhere(...$where): QueryBuilder
+    public function andWhere(...$where): self
     {
         $this->concreteQueryBuilder->andWhere(...$where);
 
@@ -674,13 +655,13 @@ class QueryBuilder
      * Adds one or more restrictions to the query results, forming a logical
      * disjunction with any previously specified restrictions.
      *
-     * @param mixed $where The WHERE statement.
+     * @param mixed,... $where The WHERE statement.
      *
      * @return QueryBuilder This QueryBuilder instance.
      *
      * @see where()
      */
-    public function orWhere(...$where): QueryBuilder
+    public function orWhere(...$where): self
     {
         $this->concreteQueryBuilder->orWhere(...$where);
 
@@ -691,11 +672,11 @@ class QueryBuilder
      * Specifies a grouping over the results of the query.
      * Replaces any previously specified groupings, if any.
      *
-     * @param mixed $groupBy The grouping expression.
+     * @param mixed,... $groupBy The grouping expression.
      *
      * @return QueryBuilder This QueryBuilder instance.
      */
-    public function groupBy(...$groupBy): QueryBuilder
+    public function groupBy(...$groupBy): self
     {
         $this->concreteQueryBuilder->groupBy(...$this->quoteIdentifiers($groupBy));
 
@@ -705,11 +686,11 @@ class QueryBuilder
     /**
      * Adds a grouping expression to the query.
      *
-     * @param mixed $groupBy The grouping expression.
+     * @param mixed,... $groupBy The grouping expression.
      *
      * @return QueryBuilder This QueryBuilder instance.
      */
-    public function addGroupBy(...$groupBy): QueryBuilder
+    public function addGroupBy(...$groupBy): self
     {
         $this->concreteQueryBuilder->addGroupBy(...$this->quoteIdentifiers($groupBy));
 
@@ -725,7 +706,7 @@ class QueryBuilder
      *
      * @return QueryBuilder This QueryBuilder instance.
      */
-    public function setValue(string $column, $value, bool $createNamedParameter = true): QueryBuilder
+    public function setValue(string $column, $value, bool $createNamedParameter = true): self
     {
         $this->concreteQueryBuilder->setValue(
             $this->quoteIdentifier($column),
@@ -744,7 +725,7 @@ class QueryBuilder
      *
      * @return QueryBuilder This QueryBuilder instance.
      */
-    public function values(array $values, bool $createNamedParameters = true): QueryBuilder
+    public function values(array $values, bool $createNamedParameters = true): self
     {
         if ($createNamedParameters === true) {
             foreach ($values as &$value) {
@@ -761,11 +742,11 @@ class QueryBuilder
      * Specifies a restriction over the groups of the query.
      * Replaces any previous having restrictions, if any.
      *
-     * @param mixed $having The restriction over the groups.
+     * @param mixed,... $having The restriction over the groups.
      *
      * @return QueryBuilder This QueryBuilder instance.
      */
-    public function having(...$having): QueryBuilder
+    public function having(...$having): self
     {
         $this->concreteQueryBuilder->having(...$having);
         return $this;
@@ -775,11 +756,11 @@ class QueryBuilder
      * Adds a restriction over the groups of the query, forming a logical
      * conjunction with any existing having restrictions.
      *
-     * @param mixed $having The restriction to append.
+     * @param mixed,... $having The restriction to append.
      *
      * @return QueryBuilder This QueryBuilder instance.
      */
-    public function andHaving(...$having): QueryBuilder
+    public function andHaving(...$having): self
     {
         $this->concreteQueryBuilder->andHaving(...$having);
 
@@ -790,11 +771,11 @@ class QueryBuilder
      * Adds a restriction over the groups of the query, forming a logical
      * disjunction with any existing having restrictions.
      *
-     * @param mixed $having The restriction to add.
+     * @param mixed,... $having The restriction to add.
      *
      * @return QueryBuilder This QueryBuilder instance.
      */
-    public function orHaving(...$having): QueryBuilder
+    public function orHaving(...$having): self
     {
         $this->concreteQueryBuilder->orHaving(...$having);
 
@@ -810,7 +791,7 @@ class QueryBuilder
      *
      * @return QueryBuilder This QueryBuilder instance.
      */
-    public function orderBy(string $fieldName, string $order = null): QueryBuilder
+    public function orderBy(string $fieldName, string $order = null): self
     {
         $this->concreteQueryBuilder->orderBy($this->connection->quoteIdentifier($fieldName), $order);
 
@@ -825,7 +806,7 @@ class QueryBuilder
      *
      * @return QueryBuilder This QueryBuilder instance.
      */
-    public function addOrderBy(string $fieldName, string $order = null): QueryBuilder
+    public function addOrderBy(string $fieldName, string $order = null): self
     {
         $this->concreteQueryBuilder->addOrderBy($this->connection->quoteIdentifier($fieldName), $order);
 
@@ -861,7 +842,7 @@ class QueryBuilder
      *
      * @return QueryBuilder This QueryBuilder instance.
      */
-    public function resetQueryParts(array $queryPartNames = null): QueryBuilder
+    public function resetQueryParts(array $queryPartNames = null): self
     {
         $this->concreteQueryBuilder->resetQueryParts($queryPartNames);
 
@@ -875,7 +856,7 @@ class QueryBuilder
      *
      * @return QueryBuilder This QueryBuilder instance.
      */
-    public function resetQueryPart($queryPartName): QueryBuilder
+    public function resetQueryPart($queryPartName): self
     {
         $this->concreteQueryBuilder->resetQueryPart($queryPartName);
 
@@ -1111,17 +1092,12 @@ class QueryBuilder
      * to the current query and return the original set of conditions so that they
      * can be restored after the query has been built/executed.
      *
-     * @param null|QueryRestrictionContainerInterface $restrictions
      * @return \Doctrine\DBAL\Query\Expression\CompositeExpression|mixed
      */
-    protected function addAdditionalWhereConditions(QueryRestrictionContainerInterface $restrictions = null)
+    protected function addAdditionalWhereConditions()
     {
-        if ($restrictions === null) {
-            $restrictions = $this->restrictionContainer;
-        }
-
         $originalWhereConditions = $this->concreteQueryBuilder->getQueryPart('where');
-        $expression = $restrictions->buildExpression($this->getQueriedTables(), $this->expr());
+        $expression = $this->restrictionContainer->buildExpression($this->getQueriedTables(), $this->expr());
         // This check would be obsolete, as the composite expression would not add empty expressions anyway
         // But we keep it here to only clone the previous state, in case we really will change it.
         // Once we remove this state preserving functionality, we can remove the count check here

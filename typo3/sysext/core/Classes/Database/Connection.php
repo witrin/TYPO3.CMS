@@ -24,6 +24,7 @@ use Doctrine\DBAL\Platforms\SQLServer2012Platform;
 use Psr\Log\LoggerAwareInterface;
 use Psr\Log\LoggerAwareTrait;
 use TYPO3\CMS\Core\Context\Context;
+use TYPO3\CMS\Core\Database\Query\ContextAwareQueryBuilder;
 use TYPO3\CMS\Core\Database\Query\Expression\ExpressionBuilder;
 use TYPO3\CMS\Core\Database\Query\QueryBuilder;
 use TYPO3\CMS\Core\Database\Query\Restriction\ContextRestrictionContainer;
@@ -108,13 +109,27 @@ class Connection extends \Doctrine\DBAL\Connection implements LoggerAwareInterfa
     /**
      * Creates a new instance of a SQL query builder.
      *
-     * @param Context|null $context
-     * @return \TYPO3\CMS\Core\Database\Query\QueryBuilder
+     * @return QueryBuilder
      */
-    public function createQueryBuilder(?Context $context = null): QueryBuilder
+    public function createQueryBuilder(): QueryBuilder
     {
         return GeneralUtility::makeInstance(
             QueryBuilder::class,
+            $this
+        );
+    }
+
+
+    /**
+     * Creates a new instance of a SQL query builder that takes the Context for restrictions.
+     *
+     * @param Context $context
+     * @return ContextAwareQueryBuilder
+     */
+    public function createContextAwareQueryBuilder(Context $context): ContextAwareQueryBuilder
+    {
+        return GeneralUtility::makeInstance(
+            ContextAwareQueryBuilder::class,
             $this,
             $context ? GeneralUtility::makeInstance(ContextRestrictionContainer::class, $context) : null,
             null,
