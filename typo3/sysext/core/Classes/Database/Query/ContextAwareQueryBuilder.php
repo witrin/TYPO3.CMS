@@ -71,8 +71,16 @@ class ContextAwareQueryBuilder extends QueryBuilder
     public function execute()
     {
         if ($this->getType() !== \Doctrine\DBAL\Query\QueryBuilder::SELECT) {
-            return $this->concreteQueryBuilder->execute();
+            return parent::execute();
         }
+        if (!$this->context->hasAspect('workspace') || !$this->context->hasAspect('language')) {
+            return parent::execute();
+        }
+
+        $queryBuilder = GeneralUtility::makeInstance(QueryBuilder::class, $this->connection);
+        $this->applyWorkspaceAspect($queryBuilder);
+        $this->applyLanguageAspect($queryBuilder);
+        // stuff...
 
         if (!$this->restrictionContainer instanceof RecordRestrictionInterface) {
             // Set additional query restrictions
@@ -93,6 +101,16 @@ class ContextAwareQueryBuilder extends QueryBuilder
         }
 
         return $result;
+    }
+
+    private function applyWorkspaceAspect(QueryBuilder $queryBuilder)
+    {
+
+    }
+
+    private function applyLanguageAspect(QueryBuilder $queryBuilder)
+    {
+
     }
 
     /**
