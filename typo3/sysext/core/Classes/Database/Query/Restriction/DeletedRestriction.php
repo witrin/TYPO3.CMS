@@ -22,7 +22,7 @@ use TYPO3\CMS\Core\Database\Query\Expression\ExpressionBuilder;
  * Restriction to respect the soft-delete functionality of TYPO3.
  * Filters out records, that were marked as deleted.
  */
-class DeletedRestriction implements QueryRestrictionInterface, RecordRestrictionInterface
+class DeletedRestriction implements QueryRestrictionInterface
 {
     /**
      * Main method to build expressions for given tables
@@ -45,14 +45,5 @@ class DeletedRestriction implements QueryRestrictionInterface, RecordRestriction
             }
         }
         return $expressionBuilder->andX(...$constraints);
-    }
-
-    public function isRecordRestricted(string $tableName, array $record): bool
-    {
-        if (!isset($GLOBALS['TCA'][$tableName]['ctrl']['delete'])) {
-            return false;
-        }
-        $fieldName = $GLOBALS['TCA'][$tableName]['ctrl']['delete'];
-        return !empty($record[$fieldName]);
     }
 }
