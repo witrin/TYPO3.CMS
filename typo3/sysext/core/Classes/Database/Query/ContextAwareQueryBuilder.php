@@ -92,7 +92,14 @@ class ContextAwareQueryBuilder extends QueryBuilder
                 $this->expr()->in('uid', $this->createNamedParameter($workspaceResult['uids'], Connection::PARAM_INT_ARRAY))
             );
             $this->addAdditionalWhereConditions();
-            $result = new ContextAwareStatement($this->concreteQueryBuilder->execute(), $this->context, $tableName, $this->restrictionContainer, $workspaceResult['map']);
+            $result = GeneralUtility::makeInstance(
+                ContextAwareStatement::class,
+                $this->concreteQueryBuilder->execute(),
+                $this->context,
+                (string)$this->concreteQueryBuilder->getQueryPart('from'),
+                $this->restrictionContainer,
+                $workspaceResult['map']
+            );
             $this->concreteQueryBuilder->add('where', $originalWhereConditions, false);
         }
 /*
@@ -137,11 +144,11 @@ class ContextAwareQueryBuilder extends QueryBuilder
         $queryBuilder = GeneralUtility::makeInstance(QueryBuilder::class, $this->connection);
         $queryBuilder->from($tableName)->select('uid', 't3ver_oid')->where(
             $queryBuilder->expr()->eq('t3ver_wsid', $queryBuilder->createNamedParameter($workspaceAspect->getId(), Connection::PARAM_INT)),
-            $queryBuilder->expr()->notIn('t3ver_state', $queryBuilder->createNamedParameter([-1, 2, 3], Connection::PARAM_INT_ARRAY))
+            $queryBuilder->expr()->notIn('t3ver_state', $queryBuilder->createNamedParameter([1, 2, 3], Connection::PARAM_INT_ARRAY))
         );
         $versionRecords = $queryBuilder->execute()->fetchAll();
         $versionRecordIds = array_column($versionRecords, 'uid');
-        $versionRecordPointerIds = array_column($versionRecordIds, 't3ver_oid');
+        $versionRecordPointerIds = array_column($versionRecords, 't3ver_oid');
 
         $queryBuilder = GeneralUtility::makeInstance(QueryBuilder::class, $this->connection);
         $queryBuilder->from($tableName)->select('uid')->where(
@@ -167,6 +174,7 @@ class ContextAwareQueryBuilder extends QueryBuilder
                 array_map('intval', $versionRecordIds),
                 array_map(
                     function(array $versionRecord) {
+                        unset($versionRecord['uid']);
                         return array_map('intval', $versionRecord);
                     },
                     $versionRecords
