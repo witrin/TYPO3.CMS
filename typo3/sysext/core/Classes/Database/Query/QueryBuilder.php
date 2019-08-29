@@ -205,7 +205,7 @@ class QueryBuilder
             $restrictions->filterByType(\TYPO3\CMS\Core\Database\Query\Restriction\DeletedRestriction::class);
             // Set additional query restrictions
             $originalWhereConditions = $this->addAdditionalWhereConditions($restrictions);
-            $result = new ContextAwareStatement($this->concreteQueryBuilder->execute(), $this);
+            $result = new ContextAwareStatement($this->concreteQueryBuilder->execute(), $this, $this->context);
             $this->concreteQueryBuilder->add('where', $originalWhereConditions, false);
         }
 
