@@ -92,7 +92,7 @@ class ContextAwareQueryBuilder extends QueryBuilder
                 $this->expr()->in('uid', $this->createNamedParameter($workspaceResult['uids'], Connection::PARAM_INT_ARRAY))
             );
             $this->addAdditionalWhereConditions();
-            $result = new ContextAwareStatement($this->concreteQueryBuilder->execute(), $this, $this->context, $workspaceResult['map']);
+            $result = new ContextAwareStatement($this->concreteQueryBuilder->execute(), $this->context, $tableName, $this->restrictionContainer, $workspaceResult['map']);
             $this->concreteQueryBuilder->add('where', $originalWhereConditions, false);
         }
 /*
@@ -162,7 +162,7 @@ class ContextAwareQueryBuilder extends QueryBuilder
             array_values($liveMapRecords)
         );
 
-        if (count($versionRecords) === 0) {
+        if (count($versionRecords) !== 0) {
             $mapArray = array_combine(
                 array_map('intval', $versionRecordIds),
                 array_map(
