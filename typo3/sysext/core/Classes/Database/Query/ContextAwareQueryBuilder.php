@@ -89,7 +89,7 @@ class ContextAwareQueryBuilder extends QueryBuilder
         if ($workspaceResult !== null) {
             $originalWhereConditions = $this->concreteQueryBuilder->getQueryPart('where');
             $this->concreteQueryBuilder->andWhere(
-                $this->expr()->in('uid', $this->createNamedParameter($workspaceResult['uids'], Connection::PARAM_INT_ARRAY))
+                $this->expr()->in('uid', $this->concreteQueryBuilder->createNamedParameter($workspaceResult['uids'], Connection::PARAM_INT_ARRAY))
             );
             $this->addAdditionalWhereConditions();
             $result = GeneralUtility::makeInstance(
