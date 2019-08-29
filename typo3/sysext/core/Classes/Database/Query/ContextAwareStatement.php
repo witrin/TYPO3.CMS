@@ -18,25 +18,16 @@ namespace TYPO3\CMS\Core\Database\Query;
 
 use Doctrine\DBAL\Driver\ResultStatement;
 use Doctrine\DBAL\Driver\Statement;
-use PDO;
+use Doctrine\DBAL\FetchMode;
 use TYPO3\CMS\Core\Context\Context;
-use TYPO3\CMS\Core\Context\WorkspaceAspect;
-use TYPO3\CMS\Core\Versioning\VersionState;
+use TYPO3\CMS\Core\Database\Query\Restriction\RecordRestrictionInterface;
 
 /**
  * Takes a Doctrine/DBAL statement and does certain "post-query" restriction checks in order to apply
- * - proper restriction checks after the records were loaded from the DB
- * - handles workspace and language overlays
+ * proper restriction checks after the records were loaded from the DB.
  */
 class ContextAwareStatement implements \IteratorAggregate, ResultStatement
 {
-    /**
-     * Contains information on mapping and restrictions.
-     *
-     * @var QueryBuilder
-     */
-    protected $queryBuilder;
-
     /**
      * The executed DBAL statement.
      *
@@ -50,28 +41,25 @@ class ContextAwareStatement implements \IteratorAggregate, ResultStatement
     protected $context;
 
     /**
-     * @var \TYPO3\CMS\Core\Context\LanguageAspect
+     * @var string
      */
-    protected $languageAspect;
+    protected $queriedTable;
 
     /**
-     * @var WorkspaceAspect
+     * @var RecordRestrictionInterface
      */
-    protected $workspaceAspect;
+    protected $restriction;
 
-    public function __construct(Statement $stmt, QueryBuilder $queryBuilder, Context $context)
+    public function __construct(Statement $stmt, Context $context, string $queriedTable, RecordRestrictionInterface $restriction)
     {
         $this->stmt = $stmt;
-        $this->queryBuilder = $queryBuilder;
         $this->context = $context;
-        $this->languageAspect = $context->getAspect('language');
-        $this->workspaceAspect = $context->getAspect('workspace');
+        $this->queriedTable = $queriedTable;
+        $this->restriction = $restriction;
     }
 
     /**
-     * Closes the cursor, freeing the database resources used by this statement.
-     *
-     * @return bool TRUE on success, FALSE on failure.
+     * @inheritDoc
      */
     public function closeCursor()
     {
@@ -79,9 +67,7 @@ class ContextAwareStatement implements \IteratorAggregate, ResultStatement
     }
 
     /**
-     * Returns the number of columns in the result set.
-     *
-     * @return int
+     * @inheritDoc
      */
     public function columnCount()
     {
@@ -103,26 +89,22 @@ class ContextAwareStatement implements \IteratorAggregate, ResultStatement
      */
     public function getIterator()
     {
-        return $this->stmt;
+        while (($result = $this->stmt->fetch()) !== false) {
+            if ($this->isRecordRestricted($result)) {
+                continue;
+            }
+            yield $result;
+        }
     }
 
     /**
      * {@inheritdoc}
      */
-    public function fetch($fetchMode = null, $cursorOrientation = PDO::FETCH_ORI_NEXT, $cursorOffset = 0)
+    public function fetch($fetchMode = null, $cursorOrientation = \PDO::FETCH_ORI_NEXT, $cursorOffset = 0)
     {
         do {
-            $result = $this->stmt->fetch($fetchMode, $cursorOrientation, $cursorOffset);
-            if (!is_array($result) || !is_object($result)) {
-                return $result;
-            }
-            $result = $this->enrich($result, $fetchMode);
-            $isRestricted = $this->queryBuilder->getRestrictions()->isRecordRestricted(
-                $this->queryBuilder->getQueryPart('from'),
-                $result
-            );
-        // fetch next item, since current one is restricted
-        } while ($isRestricted);
+            $result = $this->stmt->fetch($fetchMode);
+        } while (is_array($result) && $this->isRecordRestricted($result));
         return $result;
     }
 
@@ -131,7 +113,18 @@ class ContextAwareStatement implements \IteratorAggregate, ResultStatement
      */
     public function fetchAll($fetchMode = null, $fetchArgument = null, $ctorArgs = null)
     {
-        return $this->stmt->fetchAll($fetchMode, $fetchArgument);
+        if ($fetchArgument) {
+            $result = $this->stmt->fetchAll($fetchMode, $fetchArgument);
+        } else {
+            $result = $this->stmt->fetchAll($fetchMode);
+        }
+
+        if (is_array($result)) {
+            return array_filter($result, function($row) {
+                return $this->isRecordRestricted($row);
+            });
+        }
+        return $result;
     }
 
     /**
@@ -139,141 +132,15 @@ class ContextAwareStatement implements \IteratorAggregate, ResultStatement
      */
     public function fetchColumn($columnIndex = 0)
     {
-        return $this->stmt->fetchColumn($columnIndex);
+        $record = $this->stmt->fetch(FetchMode::MIXED);
+        if (!$this->isRecordRestricted($record)) {
+            return $record[$columnIndex] ?? false;
+        }
+        return null;
     }
 
-    /**
-     * @param $result
-     * @param null $fetchMode
-     * @return array|object|\stdClass|bool returns FALSE if could not be enriched
-     */
-    protected function enrich($result, $fetchMode = null)
+    protected function isRecordRestricted(array $record)
     {
-        if (is_array($result)) {
-            return $this->enrichArrayResult($result, $fetchMode);
-        }
-        if ($result instanceof \stdClass) {
-            return $this->enrichObjectResult($result, $fetchMode);
-        }
-        return $this->enrichClassResult($result, $fetchMode);
+        return $this->restriction->isRecordRestricted($this->queriedTable, $record);
     }
-
-    /**
-     * @param array $result
-     * @param null $fetchMode
-     * @return array
-     */
-    protected function enrichArrayResult(array $result, $fetchMode = null)
-    {
-        // todo consider NUMERIC & BOTH
-        $result = $this->overlayLiveVersionWithPossibleVersionedRecord($result);
-        return $result;
-    }
-
-    /**
-     * @param \stdClass $result
-     * @param null $fetchMode
-     * @return \stdClass
-     */
-    protected function enrichObjectResult(\stdClass $result, $fetchMode = null)
-    {
-        return $result;
-    }
-
-    /**
-     * @param object $result
-     * @param null $fetchMode
-     * @return object
-     *
-     * @see https://www.php.net/manual/en/pdostatement.fetch.php
-     */
-    protected function enrichClassResult($result, $fetchMode = null)
-    {
-        return $result;
-    }
-
-
-    /**
-     * Find a workspace record for a live version.
-     *
-     * This is indicated by:
-     * - A workspaceId was requested via the context
-     * - We have the fields "uid", "pid", "t3ver_wsid" and "t3ver_state" in the result.
-     * - The result has "t3ver_wsid" = 0, "pid" != -1
-     *
-     * We then fetch a full record of the offline version in this workspace via a custom SQL query looking for
-     * - t3ver_oid = uid field from the result
-     * - t3ver_wsid = requested workspaceId
-     *
-     * If nothing found, there is no offline version of this record.
-     * If something was found, then
-     * - we additionally set "_ORIG_uid" and "_ORIG_pid" the uid and pid from the versioned record.
-     * - we apply the live UID and live PID from the live page on to the result array.
-     *
-     * If the t3ver_state is set to 2 (= deleted), then we return "false" immediately, indicating that this record
-     * does not exist anymore.
-     *
-     *
-     * TODO:
-     * - move placeholder to move pointer resolving by evaluating "t3ver_state"
-     *
-     * @param array $result
-     * @return mixed
-     */
-    protected function overlayLiveVersionWithPossibleVersionedRecord($result)
-    {
-        // If a live version is requested, nothing else is needed.
-        if ($this->workspaceAspect->getId() === 0) {
-            return $result;
-        }
-
-        // These fields are required to be set.
-        if (!isset($result['uid'], $result['pid'], $result['t3ver_wsid'], $result['t3ver_state'])) {
-            return $result;
-        }
-
-        $workspaceId = (int)$result['t3ver_wsid'];
-        // This overlay only affects live versions, so do not touch other versions
-        if ($workspaceId !== 0) {
-            return $result;
-        }
-
-        $liveUid = (int)$result['uid'];
-        $livePid = (int)$result['pid'];
-
-        // Get the record for this workspace
-        $qb = clone $this->queryBuilder;
-        $table = $qb->getQueryPart('from');
-        $qb->resetRestrictions();
-        $qb->getRestrictions()->removeAll();
-        // @todo what happens with "JOINs" - they might deliver more results...
-        $workspaceVersion = $qb->where(
-            $qb->expr()->eq($table . '.t3ver_oid', $liveUid),
-            $qb->expr()->eq($table . '.t3ver_wsid', $this->workspaceAspect->getId())
-        )->setMaxResults(1)->execute()->fetch();
-
-        // No versioned record found, so this can be skipped
-        if (!is_array($workspaceVersion)) {
-            return $result;
-        }
-
-        $rowVersionState = VersionState::cast($workspaceVersion['t3ver_state'] ?? null);
-        if (
-            $rowVersionState->equals(VersionState::NEW_PLACEHOLDER)
-            || $rowVersionState->equals(VersionState::DELETE_PLACEHOLDER)
-        ) {
-            // Unset record if it turned out to be deleted in workspace
-            return false;
-        }
-
-        $result = $workspaceVersion;
-        $result['_ORIG_uid'] = $workspaceVersion['uid'];
-        $result['_ORIG_pid'] = $workspaceVersion['pid'];
-        $result['uid'] = $liveUid;
-        $result['pid'] = $livePid;
-        return $result;
-    }
-
-
-
 }

@@ -82,22 +82,23 @@ class ContextAwareQueryBuilder extends QueryBuilder
         $this->applyLanguageAspect($queryBuilder);
         // stuff...
 
-        if (!$this->restrictionContainer instanceof RecordRestrictionInterface) {
-            // Set additional query restrictions
-            $originalWhereConditions = $this->addAdditionalWhereConditions();
-            $result = $this->concreteQueryBuilder->execute();
-            // Restore the original query conditions in case the user keeps
-            // on modifying the state.
-            $this->concreteQueryBuilder->add('where', $originalWhereConditions, false);
-        } else {
-            // remove all restrictions, but keep DeletedRestriction (if defined)
-            // @todo introduce ExistenceAwareRestriction (or something like this)
-            $restrictions = clone $this->restrictionContainer;
-            $this->restrictionContainer->removeAll()->add(GeneralUtility::makeInstance(DeletedRestriction::class));
-            // Set additional query restrictions
-            $originalWhereConditions = $this->addAdditionalWhereConditions();
-            $result = new ContextAwareStatement($this->concreteQueryBuilder->execute(), $this, $this->context);
-            $this->concreteQueryBuilder->add('where', $originalWhereConditions, false);
+
+        // Set additional query restrictions
+        $originalWhereConditions = $this->addAdditionalWhereConditions();
+        $result = $this->concreteQueryBuilder->execute();
+        // Restore the original query conditions in case the user keeps
+        // on modifying the state.
+        $this->concreteQueryBuilder->add('where', $originalWhereConditions, false);
+
+        // Do post-restriction checks on per-record basis
+        if ($this->restrictionContainer instanceof RecordRestrictionInterface) {
+            $result = GeneralUtility::makeInstance(
+                ContextAwareStatement::class,
+                $result,
+                $this->context,
+                (string)$this->concreteQueryBuilder->getQueryPart('from'),
+                $this->restrictionContainer
+            );
         }
 
         return $result;
