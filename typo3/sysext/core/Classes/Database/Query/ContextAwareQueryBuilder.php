@@ -17,9 +17,9 @@ namespace TYPO3\CMS\Core\Database\Query;
 
 use TYPO3\CMS\Core\Context\Context;
 use TYPO3\CMS\Core\Database\Connection;
-use TYPO3\CMS\Core\Database\Query\Restriction\ContextRestrictionContainer;
 use TYPO3\CMS\Core\Database\Query\Restriction\DeletedRestriction;
 use TYPO3\CMS\Core\Database\Query\Restriction\QueryRestrictionContainerInterface;
+use TYPO3\CMS\Core\Database\Query\Restriction\RecordRestrictionInterface;
 use TYPO3\CMS\Core\Utility\GeneralUtility;
 
 /**
@@ -74,7 +74,7 @@ class ContextAwareQueryBuilder extends QueryBuilder
             return $this->concreteQueryBuilder->execute();
         }
 
-        if (!$this->restrictionContainer instanceof ContextRestrictionContainer) {
+        if (!$this->restrictionContainer instanceof RecordRestrictionInterface) {
             // Set additional query restrictions
             $originalWhereConditions = $this->addAdditionalWhereConditions();
             $result = $this->concreteQueryBuilder->execute();

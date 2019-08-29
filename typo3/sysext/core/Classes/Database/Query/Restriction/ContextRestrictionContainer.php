@@ -23,7 +23,7 @@ use TYPO3\CMS\Core\Database\Query\Expression\ExpressionBuilder;
 /**
  * This is the container with restrictions that are added based on the context
  */
-class ContextRestrictionContainer extends AbstractRestrictionContainer
+class ContextRestrictionContainer extends AbstractRestrictionContainer implements RecordRestrictionInterface
 {
     /**
      * @var Context
