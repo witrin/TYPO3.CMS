@@ -28,7 +28,7 @@ use TYPO3\CMS\Core\Versioning\VersionState;
  * - proper restriction checks after the records were loaded from the DB
  * - handles workspace and language overlays
  */
-class ContextAwareStatement implements ResultStatement, \IteratorAggregate
+class ContextAwareStatement implements \IteratorAggregate, ResultStatement
 {
     /**
      * Contains information on mapping and restrictions.
