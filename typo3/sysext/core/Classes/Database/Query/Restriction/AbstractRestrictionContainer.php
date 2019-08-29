@@ -15,8 +15,6 @@ namespace TYPO3\CMS\Core\Database\Query\Restriction;
  * The TYPO3 project - inspiring people to share!
  */
 
-use TYPO3\CMS\Core\Database\Query\Expression\CompositeExpression;
-use TYPO3\CMS\Core\Database\Query\Expression\ExpressionBuilder;
 use TYPO3\CMS\Core\Utility\GeneralUtility;
 
 /**
@@ -33,36 +31,6 @@ abstract class AbstractRestrictionContainer implements QueryRestrictionContainer
      * @var QueryRestrictionInterface[]
      */
     protected $enforcedRestrictions = [];
-
-    /**
-     * Main method to build expressions for given tables.
-     * Iterating over all registered expressions and combine them with AND
-     *
-     * @param array $queriedTables Array of tables, where array key is table alias and value is a table name
-     * @param ExpressionBuilder $expressionBuilder Expression builder instance to add restrictions with
-     * @return CompositeExpression The result of query builder expression(s)
-     */
-    public function buildExpression(array $queriedTables, ExpressionBuilder $expressionBuilder): CompositeExpression
-    {
-        $constraints = [];
-        foreach ($this->restrictions as $restriction) {
-            $constraints[] = $restriction->buildExpression($queriedTables, $expressionBuilder);
-        }
-        return $expressionBuilder->andX(...$constraints);
-    }
-
-    public function isRecordRestricted(string $tableName, array $record): bool
-    {
-        foreach ($this->restrictions as $restriction) {
-            if (!$restriction instanceof RecordRestrictionInterface) {
-                continue;
-            }
-            if ($restriction->isRecordRestricted($tableName, $record)) {
-                return true;
-            }
-        }
-        return false;
-    }
 
     /**
      * Removes all restrictions stored within this container
@@ -84,18 +52,6 @@ abstract class AbstractRestrictionContainer implements QueryRestrictionContainer
     public function removeByType(string $restrictionType): QueryRestrictionContainerInterface
     {
         unset($this->restrictions[$restrictionType], $this->enforcedRestrictions[$restrictionType]);
-        return $this;
-    }
-
-    /**
-     * @param string ...$restrictionTypes
-     * @return static
-     */
-    public function filterByType(string ...$restrictionTypes): QueryRestrictionContainerInterface
-    {
-        $filter = array_fill_keys($restrictionTypes, true);
-        $this->restrictions = array_intersect_key($this->restrictions, $filter);
-        $this->enforcedRestrictions = array_intersect_key($this->enforcedRestrictions, $filter);
         return $this;
     }
 

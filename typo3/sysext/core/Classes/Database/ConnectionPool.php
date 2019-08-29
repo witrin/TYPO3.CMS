@@ -207,7 +207,10 @@ class ConnectionPool
             );
         }
 
-        return $this->getConnectionForTable($tableName)->createQueryBuilder($context);
+        if ($context) {
+            return $this->getConnectionForTable($tableName)->createContextAwareQueryBuilder($context);
+        }
+        return $this->getConnectionForTable($tableName)->createQueryBuilder();
     }
 
     /**

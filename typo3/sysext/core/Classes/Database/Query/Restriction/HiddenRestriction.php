@@ -46,6 +46,13 @@ class HiddenRestriction implements QueryRestrictionInterface, RecordRestrictionI
         return $expressionBuilder->andX(...$constraints);
     }
 
+    /**
+     * If a record is hidden/disabled, it will be skipped.
+     *
+     * @param string $tableName
+     * @param array $record
+     * @return bool
+     */
     public function isRecordRestricted(string $tableName, array $record): bool
     {
         if (!isset($GLOBALS['TCA'][$tableName]['ctrl']['enablecolumns']['disabled'])) {

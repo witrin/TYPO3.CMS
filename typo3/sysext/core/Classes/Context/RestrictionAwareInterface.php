@@ -15,7 +15,12 @@ namespace TYPO3\CMS\Core\Context;
  * The TYPO3 project - inspiring people to share!
  */
 
+use TYPO3\CMS\Core\Database\Query\Restriction\QueryRestrictionInterface;
+
 interface RestrictionAwareInterface
 {
+    /**
+     * @return QueryRestrictionInterface[]
+     */
     public function resolveRestrictions(): array;
 }

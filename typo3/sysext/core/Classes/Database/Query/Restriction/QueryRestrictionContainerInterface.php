@@ -22,13 +22,6 @@ namespace TYPO3\CMS\Core\Database\Query\Restriction;
 interface QueryRestrictionContainerInterface extends QueryRestrictionInterface
 {
     /**
-     * @param string $tableName
-     * @param array $record
-     * @return bool
-     */
-    public function isRecordRestricted(string $tableName, array $record): bool;
-
-    /**
      * Removes all restrictions stored within this container
      *
      * @return QueryRestrictionContainerInterface
@@ -42,12 +35,6 @@ interface QueryRestrictionContainerInterface extends QueryRestrictionInterface
      * @return QueryRestrictionContainerInterface
      */
     public function removeByType(string $restrictionType);
-
-    /**
-     * @param string ...$restrictionTypes
-     * @return static
-     */
-    public function filterByType(string ...$restrictionTypes);
 
     /**
      * Add a new restriction instance to this collection
