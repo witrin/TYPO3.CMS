@@ -131,9 +131,8 @@ class Connection extends \Doctrine\DBAL\Connection implements LoggerAwareInterfa
         return GeneralUtility::makeInstance(
             ContextAwareQueryBuilder::class,
             $this,
-            $context ? GeneralUtility::makeInstance(ContextRestrictionContainer::class, $context) : null,
-            null,
-            $context
+            $context,
+            GeneralUtility::makeInstance(ContextRestrictionContainer::class, $context)
         );
     }
 

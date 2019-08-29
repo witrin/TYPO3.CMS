@@ -15,6 +15,8 @@ namespace TYPO3\CMS\Core\Database\Query\Restriction;
  * The TYPO3 project - inspiring people to share!
  */
 
+use TYPO3\CMS\Core\Database\Query\Expression\CompositeExpression;
+use TYPO3\CMS\Core\Database\Query\Expression\ExpressionBuilder;
 use TYPO3\CMS\Core\Utility\GeneralUtility;
 
 /**
@@ -31,6 +33,23 @@ abstract class AbstractRestrictionContainer implements QueryRestrictionContainer
      * @var QueryRestrictionInterface[]
      */
     protected $enforcedRestrictions = [];
+
+    /**
+     * Main method to build expressions for given tables.
+     * Iterating over all registered expressions and combine them with AND
+     *
+     * @param array $queriedTables Array of tables, where array key is table alias and value is a table name
+     * @param ExpressionBuilder $expressionBuilder Expression builder instance to add restrictions with
+     * @return CompositeExpression The result of query builder expression(s)
+     */
+    public function buildExpression(array $queriedTables, ExpressionBuilder $expressionBuilder): CompositeExpression
+    {
+        $constraints = [];
+        foreach ($this->restrictions as $restriction) {
+            $constraints[] = $restriction->buildExpression($queriedTables, $expressionBuilder);
+        }
+        return $expressionBuilder->andX(...$constraints);
+    }
 
     /**
      * Removes all restrictions stored within this container

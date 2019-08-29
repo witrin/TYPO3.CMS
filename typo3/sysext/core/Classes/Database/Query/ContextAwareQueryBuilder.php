@@ -96,32 +96,6 @@ class ContextAwareQueryBuilder extends QueryBuilder
     }
 
     /**
-     * Gets the complete SQL string formed by the current specifications of this QueryBuilder.
-     *
-     * If the statement is a SELECT TYPE query restrictions based on TCA settings will
-     * automatically be applied based on the current QuerySettings.
-     *
-     * @return string The SQL query string.
-     */
-    public function getSQL(): string
-    {
-        if ($this->getType() !== \Doctrine\DBAL\Query\QueryBuilder::SELECT) {
-            return $this->concreteQueryBuilder->getSQL();
-        }
-
-        // Set additional query restrictions
-        $originalWhereConditions = $this->addAdditionalWhereConditions();
-
-        $sql = $this->concreteQueryBuilder->getSQL();
-
-        // Restore the original query conditions in case the user keeps
-        // on modifying the state.
-        $this->concreteQueryBuilder->add('where', $originalWhereConditions, false);
-
-        return $sql;
-    }
-
-    /**
      * Deep clone of the QueryBuilder
      * @see \Doctrine\DBAL\Query\QueryBuilder::__clone()
      */

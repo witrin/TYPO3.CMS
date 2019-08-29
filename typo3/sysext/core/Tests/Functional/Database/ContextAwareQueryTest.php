@@ -120,10 +120,8 @@ class ContextAwareQueryTest extends AbstractDataHandlerActionTestCase
     {
         $context = clone GeneralUtility::makeInstance(Context::class);
         $context->setAspect('workspace', GeneralUtility::makeInstance(WorkspaceAspect::class, 0));
-        $contextRestrictionContainer = GeneralUtility::makeInstance(ContextRestrictionContainer::class, $context);
 
-        $queryBuilder = $this->getConnectionPool()->getQueryBuilderForTable($tableName);
-        $queryBuilder->getRestrictions()->add($contextRestrictionContainer);
+        $queryBuilder = $this->getConnectionPool()->getConnectionForTable($tableName)->createContextAwareQueryBuilder($context);
         $statement = $queryBuilder
             ->select('*')
             ->from($tableName)
