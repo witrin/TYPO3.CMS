@@ -132,9 +132,26 @@ class ContextAwareQueryTest extends AbstractDataHandlerActionTestCase
         $this->assertDataSetEntries($dataSet, $tableName, $records);
     }
 
-    public function draftWorkspaceRecordsAreRetrieved()
+    /**
+     * @param string $tableName
+     * @param string $dataSetFile
+     *
+     * @test
+     */
+    public function draftWorkspaceRecordsAreRetrieved(string $tableName = 'tt_content', string $dataSetFile = __DIR__ . '/Fixtures/DataSet/DraftWorkspaceResultScenario.csv')
     {
+        $context = clone GeneralUtility::makeInstance(Context::class);
+        $context->setAspect('workspace', GeneralUtility::makeInstance(WorkspaceAspect::class, 1));
 
+        $queryBuilder = $this->getConnectionPool()->getConnectionForTable($tableName)->createContextAwareQueryBuilder($context);
+        $statement = $queryBuilder
+            ->select('*')
+            ->from($tableName)
+            ->execute();
+
+        $dataSet = DataSet::read($dataSetFile);
+        $records = $this->retrieveRecordsUsingFetchAll($statement, true, FetchMode::ASSOCIATIVE);
+        $this->assertDataSetEntries($dataSet, $tableName, $records);
     }
 
     private function retrieveRecordsUsingFetch(ResultStatement $statement, bool $hasUidField = true, int $fetchMode = null): array

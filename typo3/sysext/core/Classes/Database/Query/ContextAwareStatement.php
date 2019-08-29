@@ -50,12 +50,18 @@ class ContextAwareStatement implements \IteratorAggregate, ResultStatement
      */
     protected $restriction;
 
-    public function __construct(Statement $stmt, Context $context, string $queriedTable, RecordRestrictionInterface $restriction)
+    /**
+     * @var VersionMap
+     */
+    protected $versionMap;
+
+    public function __construct(Statement $stmt, Context $context, string $queriedTable, RecordRestrictionInterface $restriction, VersionMap $versionMap)
     {
         $this->stmt = $stmt;
         $this->context = $context;
         $this->queriedTable = $queriedTable;
         $this->restriction = $restriction;
+        $this->versionMap = $versionMap;
     }
 
     /**

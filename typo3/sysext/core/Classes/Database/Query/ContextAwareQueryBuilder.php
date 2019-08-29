@@ -44,6 +44,11 @@ class ContextAwareQueryBuilder extends QueryBuilder
     protected $context;
 
     /**
+     * @var QueryBuilder[]
+     */
+    private $queryBuilders = [];
+
+    /**
      * Initializes a new QueryBuilder.
      *
      * @param Connection $connection The DBAL Connection.
@@ -77,10 +82,20 @@ class ContextAwareQueryBuilder extends QueryBuilder
             return parent::execute();
         }
 
-        $queryBuilder = GeneralUtility::makeInstance(QueryBuilder::class, $this->connection);
-        $this->applyWorkspaceAspect($queryBuilder);
-        $this->applyLanguageAspect($queryBuilder);
-        // stuff...
+        // @todo not sure whether this "unquote" is correct, otherwise collect in 'from()'
+        $tableName = $this->unquoteSingleIdentifier($this->concreteQueryBuilder->getQueryPart('from')[0]['table']);
+        $workspaceResult = $this->resolveWorkspaceAspect($tableName);
+
+        if ($workspaceResult !== null) {
+            $originalWhereConditions = $this->concreteQueryBuilder->getQueryPart('where');
+            $this->concreteQueryBuilder->andWhere(
+                $this->expr()->in('uid', $this->createNamedParameter($workspaceResult['uids'], Connection::PARAM_INT_ARRAY))
+            );
+            $this->addAdditionalWhereConditions();
+            $result = new ContextAwareStatement($this->concreteQueryBuilder->execute(), $this, $this->context, $workspaceResult['map']);
+            $this->concreteQueryBuilder->add('where', $originalWhereConditions, false);
+        }
+/*
 
 
         // Set additional query restrictions
@@ -100,16 +115,81 @@ class ContextAwareQueryBuilder extends QueryBuilder
                 $this->restrictionContainer
             );
         }
+*/
 
         return $result;
     }
 
-    private function applyWorkspaceAspect(QueryBuilder $queryBuilder)
+    private function resolveWorkspaceAspect(string $tableName): ?array
     {
+        if (!$this->context->hasAspect('workspace')) {
+            return null;
+        }
 
+        /** @var \TYPO3\CMS\Core\Context\WorkspaceAspect $workspaceAspect */
+        $workspaceAspect = $this->context->getAspect('workspace');
+
+        $subQueryBuilder = GeneralUtility::makeInstance(QueryBuilder::class, $this->connection);
+        $subQueryBuilder->select('uid')->from($tableName)->andWhere(
+            $subQueryBuilder->expr()->eq('t3ver_wsid', (int)$workspaceAspect->getId())
+        );
+
+        $queryBuilder = GeneralUtility::makeInstance(QueryBuilder::class, $this->connection);
+        $queryBuilder->from($tableName)->select('uid', 't3ver_oid')->where(
+            $queryBuilder->expr()->eq('t3ver_wsid', $queryBuilder->createNamedParameter($workspaceAspect->getId(), Connection::PARAM_INT)),
+            $queryBuilder->expr()->notIn('t3ver_state', $queryBuilder->createNamedParameter([-1, 2, 3], Connection::PARAM_INT_ARRAY))
+        );
+        $versionRecords = $queryBuilder->execute()->fetchAll();
+        $versionRecordIds = array_column($versionRecords, 'uid');
+        $versionRecordPointerIds = array_column($versionRecordIds, 't3ver_oid');
+
+        $queryBuilder = GeneralUtility::makeInstance(QueryBuilder::class, $this->connection);
+        $queryBuilder->from($tableName)->select('uid')->where(
+            $queryBuilder->expr()->eq('t3ver_wsid', $queryBuilder->createNamedParameter(0, Connection::PARAM_INT)),
+            $queryBuilder->expr()->eq('t3ver_state', $queryBuilder->createNamedParameter(0, Connection::PARAM_INT)),
+            $queryBuilder->expr()->notIn('uid', $queryBuilder->createNamedParameter($versionRecordPointerIds, Connection::PARAM_INT_ARRAY))
+        );
+        $liveRecords = $queryBuilder->execute()->fetchAll();
+        $liveRecordIds = array_column($liveRecords, 'uid');
+
+        $queryBuilder = GeneralUtility::makeInstance(QueryBuilder::class, $this->connection);
+        $queryBuilder->from($tableName)->select('uid', 'pid')->where(
+            $queryBuilder->expr()->in('uid', $queryBuilder->createNamedParameter($versionRecordPointerIds, Connection::PARAM_INT_ARRAY))
+        );
+        $liveMapRecords = $queryBuilder->execute()->fetchAll();
+        $liveMapRecords = array_combine(
+            array_map('intval', array_column($liveMapRecords, 'uid')),
+            array_values($liveMapRecords)
+        );
+
+        if (count($versionRecords) === 0) {
+            $mapArray = array_combine(
+                array_map('intval', $versionRecordIds),
+                array_map(
+                    function(array $versionRecord) {
+                        return array_map('intval', $versionRecord);
+                    },
+                    $versionRecords
+                )
+            );
+
+            $mapArray = array_map(
+                function(array $map) use ($liveMapRecords) {
+                    $pointerId = $map['t3ver_oid'];
+                    $map['pid'] = $liveMapRecords[$pointerId]['pid'];
+                    return $map;
+                },
+                $mapArray
+            );
+        }
+
+        return [
+            'uids' => array_merge($versionRecordIds, $liveRecordIds),
+            'map' => VersionMap::fromArray($mapArray ?? [])
+        ];
     }
 
-    private function applyLanguageAspect(QueryBuilder $queryBuilder)
+    private function resolveLanguageAspect(string $tableName)
     {
 
     }
