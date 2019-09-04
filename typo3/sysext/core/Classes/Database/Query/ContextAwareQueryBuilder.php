@@ -115,27 +115,6 @@ class ContextAwareQueryBuilder extends QueryBuilder
             );
             $this->concreteQueryBuilder->add('where', $originalWhereConditions, false);
         }
-/*
-
-
-        // Set additional query restrictions
-        $originalWhereConditions = $this->addAdditionalWhereConditions();
-        $result = $this->concreteQueryBuilder->execute();
-        // Restore the original query conditions in case the user keeps
-        // on modifying the state.
-        $this->concreteQueryBuilder->add('where', $originalWhereConditions, false);
-
-        // Do post-restriction checks on per-record basis
-        if ($this->restrictionContainer instanceof RecordRestrictionInterface) {
-            $result = GeneralUtility::makeInstance(
-                ContextAwareStatement::class,
-                $result,
-                $this->context,
-                (string)$this->concreteQueryBuilder->getQueryPart('from'),
-                $this->restrictionContainer
-            );
-        }
-*/
 
         return $result;
     }
