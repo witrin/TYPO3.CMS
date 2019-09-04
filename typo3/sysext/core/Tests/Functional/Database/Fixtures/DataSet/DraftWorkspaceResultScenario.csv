@@ -11,25 +11,32 @@
 ,95,-1,256,0,89,1,0,0,89,0,"Testing #1","/data-handler/relations",0,0
 ,96,-1,512,0,91,1,2,0,91,0,"Target","/data-handler/superfluous",0,0
 "tt_content",,,,,,,,,,,,,,
-,"uid","pid","sorting","deleted","sys_language_uid","l18n_parent","l10n_source","t3_origuid","t3ver_wsid","t3ver_state","t3ver_stage","t3ver_oid","t3ver_move_id","header","_orig_PID","_orig_UID"
-,296,88,256,0,0,0,0,0,0,0,0,0,0,"Regular Element #0",0,0
-,297,89,256,0,0,0,0,0,0,0,0,0,0,"Regular Element #1",0,0
+,"uid","pid","sorting","deleted","sys_language_uid","l18n_parent","l10n_source","t3_origuid","t3ver_wsid","t3ver_state","t3ver_stage","t3ver_oid","t3ver_move_id","header","_ORIG_pid","_ORIG_uid"
+,296,88,256,0,0,0,0,0,0,0,0,0,0,"Regular Element #0",\NULL,\NULL
+,297,89,256,0,0,0,0,297,1,0,0,297,0,"Testing #1",-1,323
 ,298,89,512,0,0,0,0,0,0,0,0,0,0,"Regular Element #2",0,0
+# @todo: to be moved -> 325,326
 ,299,89,768,0,0,0,0,0,0,0,0,0,0,"Regular Element #3",0,0
+# @todo: to be moved -> 327,328
 ,300,89,1024,0,1,299,299,299,0,0,0,0,0,"[Translate to Dansk:] Regular Element #3",0,0
-,301,89,384,0,1,297,297,297,0,0,0,0,0,"[Translate to Dansk:] Regular Element #1",0,0
-,302,89,448,0,2,297,301,301,0,0,0,0,0,"[Translate to Deutsch:] [Translate to Dansk:] Regular Element #1",0,0
-,310,90,256,0,0,0,0,0,0,0,0,0,0,"Regular Element #10",0,0
-,311,90,512,0,1,0,310,310,0,0,0,0,0,"[Translate to Dansk:] Regular Element #10",0,0
-,312,90,768,0,2,0,311,311,0,0,0,0,0,"[Translate to Deutsch:] [Translate to Dansk:] Regular Element #10",0,0
-,320,-1,512,0,0,0,0,298,2,2,0,298,0,"Regular Element #2",0,0
-,321,89,128,0,0,0,0,0,1,1,0,0,0,"Testing #1",0,0
-,322,-1,128,0,0,0,0,0,1,-1,0,321,0,"Testing #1",0,0
-,323,-1,256,0,0,0,0,297,1,0,0,297,0,"Testing #1",0,0
-,324,-1,512,0,0,0,0,298,1,2,0,298,0,"Regular Element #2",0,0
-,325,-1,768,0,0,0,0,299,1,4,0,299,0,"Regular Element #3",0,0
-,326,90,128,0,0,0,0,0,1,3,0,0,299,"[MOVE-TO PLACEHOLDER for #299, WS#1]",0,0
-,327,-1,1024,0,1,325,299,300,1,4,0,300,0,"[Translate to Dansk:] Regular Element #3",0,0
-,328,90,64,0,1,299,0,0,1,3,0,0,300,"[MOVE-TO PLACEHOLDER for #300, WS#1]",0,0
-,329,93,256,0,0,0,0,0,1,1,0,0,0,"Testing #1",0,0
-,330,-1,256,0,0,0,0,0,1,-1,0,329,0,"Testing #1",0,0
+,301,89,384,0,1,297,297,297,0,0,0,0,0,"[Translate to Dansk:] Regular Element #1",\NULL,\NULL
+,302,89,448,0,2,297,301,301,0,0,0,0,0,"[Translate to Deutsch:] [Translate to Dansk:] Regular Element #1",\NULL,\NULL
+,310,90,256,0,0,0,0,0,0,0,0,0,0,"Regular Element #10",\NULL,\NULL
+,311,90,512,0,1,0,310,310,0,0,0,0,0,"[Translate to Dansk:] Regular Element #10",\NULL,\NULL
+,312,90,768,0,2,0,311,311,0,0,0,0,0,"[Translate to Deutsch:] [Translate to Dansk:] Regular Element #10",\NULL,\NULL
+,321,89,128,0,0,0,0,0,1,-1,0,321,0,"Testing #1",-1,322
+# ok - overlaid new placeholder
+# ,322,-1,128,0,0,0,0,0,1,-1,0,321,0,"Testing #1",0,0
+# ok - overlaid
+# ,323,-1,256,0,0,0,0,297,1,0,0,297,0,"Testing #1",0,0
+# ok - deleted
+# ,324,-1,512,0,0,0,0,298,1,2,0,298,0,"Regular Element #2",0,0
+# missing - both move records
+# ,325,-1,768,0,0,0,0,299,1,4,0,299,0,"Regular Element #3",0,0
+# ,326,90,128,0,0,0,0,0,1,3,0,0,299,"[MOVE-TO PLACEHOLDER for #299, WS#1]",0,0
+# missing - both move records (localized)
+# ,327,-1,1024,0,1,325,299,300,1,4,0,300,0,"[Translate to Dansk:] Regular Element #3",0,0
+# ,328,90,64,0,1,299,0,0,1,3,0,0,300,"[MOVE-TO PLACEHOLDER for #300, WS#1]",0,0
+,329,93,256,0,0,0,0,0,1,-1,0,329,0,"Testing #1",-1,330
+# ok - overlaid new placeholder
+# ,330,-1,256,0,0,0,0,0,1,-1,0,329,0,"Testing #1",0,0
