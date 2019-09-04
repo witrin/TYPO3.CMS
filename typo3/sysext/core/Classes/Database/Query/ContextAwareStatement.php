@@ -126,6 +126,7 @@ class ContextAwareStatement implements \IteratorAggregate, ResultStatement
         }
 
         if (is_array($result)) {
+            $result = array_map([$this, 'enrichRecord'], $result);
             return array_filter($result, function($row) {
                 return !$this->isRecordRestricted($row);
             });
@@ -143,6 +144,28 @@ class ContextAwareStatement implements \IteratorAggregate, ResultStatement
             return $record[$columnIndex] ?? false;
         }
         return null;
+    }
+
+    private function enrichRecord(array $record)
+    {
+        // @todo Has to be in select part (added internally) and stripped for final result set
+        $uid = (int)$record['uid'];
+        $record['_ORIG_pid'] = null;
+        $record['_ORIG_uid'] = null;
+
+        // @todo missing move placeholder indicators
+        # $row['_MOVE_PLH'] = true;
+        # $row['_MOVE_PLH_uid'] = $orig_uid;
+        # $row['_MOVE_PLH_pid'] = $orig_pid;
+
+        if ($this->versionMap->has($uid)) {
+            $record['_ORIG_uid'] = $record['uid'];
+            $record['_ORIG_pid'] = $record['pid']; // -1 / kept for backward compatibility
+            // @todo Only if in initial select list
+            $record['uid'] = $this->versionMap->getLiveId($uid);
+            $record['pid'] = $this->versionMap->getPageId($uid);
+        }
+        return $record;
     }
 
     protected function isRecordRestricted(array $record)
