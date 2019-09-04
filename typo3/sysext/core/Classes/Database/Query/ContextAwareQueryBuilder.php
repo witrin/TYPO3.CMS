@@ -84,12 +84,21 @@ class ContextAwareQueryBuilder extends QueryBuilder
 
         // @todo not sure whether this "unquote" is correct, otherwise collect in 'from()'
         $tableName = $this->unquoteSingleIdentifier($this->concreteQueryBuilder->getQueryPart('from')[0]['table']);
-        $workspaceResult = $this->resolveWorkspaceAspect($tableName);
 
-        if ($workspaceResult !== null) {
+        if ($this->context->hasAspect('workspace')) {
+            $workspaceResolver = new \TYPO3\CMS\Core\Database\Query\Context\WorkspaceAspectResolver(
+                $this->connection,
+                $this->context->getAspect('workspace'),
+                $tableName
+            );
+
             $originalWhereConditions = $this->concreteQueryBuilder->getQueryPart('where');
             $this->concreteQueryBuilder->andWhere(
-                $this->expr()->in('uid', $this->concreteQueryBuilder->createNamedParameter($workspaceResult['uids'], Connection::PARAM_INT_ARRAY))
+                $this->expr()->in(
+                    'uid',
+                    $this->concreteQueryBuilder->createNamedParameter($workspaceResolver->getUids(), Connection::PARAM_INT_ARRAY)
+                )
+            );
             );
             $this->addAdditionalWhereConditions();
             $result = GeneralUtility::makeInstance(
@@ -98,7 +107,7 @@ class ContextAwareQueryBuilder extends QueryBuilder
                 $this->context,
                 (string)$this->concreteQueryBuilder->getQueryPart('from'),
                 $this->restrictionContainer,
-                $workspaceResult['map']
+                $workspaceResolver->getVersionMap()
             );
             $this->concreteQueryBuilder->add('where', $originalWhereConditions, false);
         }
@@ -125,81 +134,6 @@ class ContextAwareQueryBuilder extends QueryBuilder
 */
 
         return $result;
-    }
-
-    private function resolveWorkspaceAspect(string $tableName): ?array
-    {
-        if (!$this->context->hasAspect('workspace')) {
-            return null;
-        }
-
-        /** @var \TYPO3\CMS\Core\Context\WorkspaceAspect $workspaceAspect */
-        $workspaceAspect = $this->context->getAspect('workspace');
-
-        $subQueryBuilder = GeneralUtility::makeInstance(QueryBuilder::class, $this->connection);
-        $subQueryBuilder->select('uid')->from($tableName)->andWhere(
-            $subQueryBuilder->expr()->eq('t3ver_wsid', (int)$workspaceAspect->getId())
-        );
-
-        $queryBuilder = GeneralUtility::makeInstance(QueryBuilder::class, $this->connection);
-        $queryBuilder->from($tableName)->select('uid', 't3ver_oid')->where(
-            $queryBuilder->expr()->eq('t3ver_wsid', $queryBuilder->createNamedParameter($workspaceAspect->getId(), Connection::PARAM_INT)),
-            $queryBuilder->expr()->notIn('t3ver_state', $queryBuilder->createNamedParameter([1, 2, 3], Connection::PARAM_INT_ARRAY))
-        );
-        $versionRecords = $queryBuilder->execute()->fetchAll();
-        $versionRecordIds = array_column($versionRecords, 'uid');
-        $versionRecordPointerIds = array_column($versionRecords, 't3ver_oid');
-
-        $queryBuilder = GeneralUtility::makeInstance(QueryBuilder::class, $this->connection);
-        $queryBuilder->from($tableName)->select('uid')->where(
-            $queryBuilder->expr()->eq('t3ver_wsid', $queryBuilder->createNamedParameter(0, Connection::PARAM_INT)),
-            $queryBuilder->expr()->eq('t3ver_state', $queryBuilder->createNamedParameter(0, Connection::PARAM_INT)),
-            $queryBuilder->expr()->notIn('uid', $queryBuilder->createNamedParameter($versionRecordPointerIds, Connection::PARAM_INT_ARRAY))
-        );
-        $liveRecords = $queryBuilder->execute()->fetchAll();
-        $liveRecordIds = array_column($liveRecords, 'uid');
-
-        $queryBuilder = GeneralUtility::makeInstance(QueryBuilder::class, $this->connection);
-        $queryBuilder->from($tableName)->select('uid', 'pid')->where(
-            $queryBuilder->expr()->in('uid', $queryBuilder->createNamedParameter($versionRecordPointerIds, Connection::PARAM_INT_ARRAY))
-        );
-        $liveMapRecords = $queryBuilder->execute()->fetchAll();
-        $liveMapRecords = array_combine(
-            array_map('intval', array_column($liveMapRecords, 'uid')),
-            array_values($liveMapRecords)
-        );
-
-        if (count($versionRecords) !== 0) {
-            $mapArray = array_combine(
-                array_map('intval', $versionRecordIds),
-                array_map(
-                    function(array $versionRecord) {
-                        unset($versionRecord['uid']);
-                        return array_map('intval', $versionRecord);
-                    },
-                    $versionRecords
-                )
-            );
-
-            $mapArray = array_map(
-                function(array $map) use ($liveMapRecords) {
-                    $pointerId = $map['t3ver_oid'];
-                    $map['pid'] = $liveMapRecords[$pointerId]['pid'];
-                    return $map;
-                },
-                $mapArray
-            );
-        }
-
-        return [
-            'uids' => array_merge($versionRecordIds, $liveRecordIds),
-            'map' => VersionMap::fromArray($mapArray ?? [])
-        ];
-    }
-
-    private function resolveLanguageAspect(string $tableName)
-    {
-
     }
 
     /**
