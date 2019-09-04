@@ -127,7 +127,7 @@ class ContextAwareStatement implements \IteratorAggregate, ResultStatement
 
         if (is_array($result)) {
             return array_filter($result, function($row) {
-                return $this->isRecordRestricted($row);
+                return !$this->isRecordRestricted($row);
             });
         }
         return $result;
