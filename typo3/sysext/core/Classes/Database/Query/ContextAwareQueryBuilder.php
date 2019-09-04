@@ -44,9 +44,9 @@ class ContextAwareQueryBuilder extends QueryBuilder
     protected $context;
 
     /**
-     * @var QueryBuilder[]
+     * @var SelectIdentifierCollection
      */
-    private $queryBuilders = [];
+    private $selectIdentifierCollection;
 
     /**
      * Initializes a new QueryBuilder.
@@ -66,6 +66,12 @@ class ContextAwareQueryBuilder extends QueryBuilder
     ) {
         parent::__construct($connection, $restrictionContainer, $concreteQueryBuilder, $additionalRestrictions);
         $this->context = $context;
+    }
+
+    public function select(string ...$selects): QueryBuilder
+    {
+        $this->selectIdentifierCollection = SelectIdentifierCollection::fromExpressions(...$selects);
+        return parent::select(...$selects);
     }
 
     /**
@@ -109,7 +115,7 @@ class ContextAwareQueryBuilder extends QueryBuilder
                 ContextAwareStatement::class,
                 $this->concreteQueryBuilder->execute(),
                 $this->context,
-                (string)$this->concreteQueryBuilder->getQueryPart('from')[0]['table'],
+                $tableName,
                 $this->restrictionContainer,
                 $workspaceResolver->getVersionMap()
             );
