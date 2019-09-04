@@ -181,8 +181,13 @@ class ContextAwareStatement implements \IteratorAggregate, ResultStatement
         if ($this->versionMap->has($uid)) {
             $record['_ORIG_uid'] = $uid;
             $record['_ORIG_pid'] = $pid; // -1 / kept for backward compatibility
-            $record['uid'] = $this->versionMap->getLiveId($uid);
-            $record['pid'] = $this->versionMap->getPageId($uid);
+
+            if (isset($record['uid'])) {
+                $record['uid'] = $this->versionMap->getLiveId($uid);
+            }
+            if (isset($record['pid'])) {
+                $record['pid'] = $this->versionMap->getPageId($uid);
+            }
         }
 
         if ($this->filterRecordIndexes !== []) {
