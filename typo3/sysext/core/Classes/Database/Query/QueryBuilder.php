@@ -1093,11 +1093,20 @@ class QueryBuilder
      * can be restored after the query has been built/executed.
      *
      * @return \Doctrine\DBAL\Query\Expression\CompositeExpression|mixed
+     * @todo This method needs improvement
      */
-    protected function addAdditionalWhereConditions()
+    protected function addAdditionalWhereConditions(string ...$removeRestrictions)
     {
+        $restrictionContainer = $this->restrictionContainer;
+        if (count($removeRestrictions) > 0) {
+            $restrictionContainer = clone $this->restrictionContainer;
+            foreach ($removeRestrictions as $removeRestriction) {
+                $restrictionContainer->removeByType($removeRestriction);
+            }
+        }
+
         $originalWhereConditions = $this->concreteQueryBuilder->getQueryPart('where');
-        $expression = $this->restrictionContainer->buildExpression($this->getQueriedTables(), $this->expr());
+        $expression = $restrictionContainer->buildExpression($this->getQueriedTables(), $this->expr());
         // This check would be obsolete, as the composite expression would not add empty expressions anyway
         // But we keep it here to only clone the previous state, in case we really will change it.
         // Once we remove this state preserving functionality, we can remove the count check here

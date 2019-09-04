@@ -99,8 +99,12 @@ class ContextAwareQueryBuilder extends QueryBuilder
                     $this->concreteQueryBuilder->createNamedParameter($workspaceResolver->getUids(), Connection::PARAM_INT_ARRAY)
                 )
             );
+            // @todo Why are there three restrictions for workspaces?!
+            $this->addAdditionalWhereConditions(
+                \TYPO3\CMS\Core\Database\Query\Restriction\WorkspaceRestriction::class,
+                \TYPO3\CMS\Core\Database\Query\Restriction\FrontendWorkspaceRestriction::class,
+                \TYPO3\CMS\Core\Database\Query\Restriction\BackendWorkspaceRestriction::class
             );
-            $this->addAdditionalWhereConditions();
             $result = GeneralUtility::makeInstance(
                 ContextAwareStatement::class,
                 $this->concreteQueryBuilder->execute(),
