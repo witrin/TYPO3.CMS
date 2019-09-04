@@ -49,6 +49,11 @@ class ContextAwareQueryBuilder extends QueryBuilder
     private $selectIdentifierCollection;
 
     /**
+     * @var TableIdentifier
+     */
+    private $tableIdentifier;
+
+    /**
      * Initializes a new QueryBuilder.
      *
      * @param Connection $connection The DBAL Connection.
@@ -74,6 +79,12 @@ class ContextAwareQueryBuilder extends QueryBuilder
         return parent::select(...$selects);
     }
 
+    public function from(string $from, string $alias = null): QueryBuilder
+    {
+        $this->tableIdentifier = TableIdentifier::create($from, $alias);
+        return parent::from($from, $alias);
+    }
+
     /**
      * Executes this query using the bound parameters and their types.
      *
@@ -89,7 +100,7 @@ class ContextAwareQueryBuilder extends QueryBuilder
         }
 
         // @todo not sure whether this "unquote" is correct, otherwise collect in 'from()'
-        $tableName = $this->unquoteSingleIdentifier($this->concreteQueryBuilder->getQueryPart('from')[0]['table']);
+        $tableName = $this->tableIdentifier->getTableName();
 
         if ($this->context->hasAspect('workspace')) {
             $workspaceResolver = new \TYPO3\CMS\Core\Database\Query\Context\WorkspaceAspectResolver(
@@ -105,6 +116,9 @@ class ContextAwareQueryBuilder extends QueryBuilder
                     $this->concreteQueryBuilder->createNamedParameter($workspaceResolver->getUids(), Connection::PARAM_INT_ARRAY)
                 )
             );
+
+            $additionalIdentifiers = $this->appendAdditionalSelects('uid', 'pid');
+
             // @todo Why are there three restrictions for workspaces?!
             $this->addAdditionalWhereConditions(
                 \TYPO3\CMS\Core\Database\Query\Restriction\WorkspaceRestriction::class,
@@ -113,9 +127,10 @@ class ContextAwareQueryBuilder extends QueryBuilder
             );
             $result = GeneralUtility::makeInstance(
                 ContextAwareStatement::class,
+                $additionalIdentifiers,
                 $this->concreteQueryBuilder->execute(),
                 $this->context,
-                $tableName,
+                $this->tableIdentifier,
                 $this->restrictionContainer,
                 $workspaceResolver->getVersionMap()
             );
@@ -123,6 +138,34 @@ class ContextAwareQueryBuilder extends QueryBuilder
         }
 
         return $result;
+    }
+
+    private function appendAdditionalSelects(string ...$fieldNames): array
+    {
+        $additionalSelects = [];
+        $additionalIdentifiers = [];
+        foreach ($fieldNames as $fieldName) {
+            if ($this->selectIdentifierCollection->hasFieldName($this->tableIdentifier, $fieldName)) {
+                continue;
+            }
+            $alias = md5(uniqid($fieldName, true));
+            $additionalIdentifiers[$fieldName] = $alias;
+            $additionalSelects[$alias] = sprintf(
+                '%s.%s AS %s',
+                $this->tableIdentifier->getAlias() ?? $this->tableIdentifier->getTableName(),
+                $fieldName,
+                $alias
+            );
+        }
+        if (count($additionalSelects) === 0) {
+            return [];
+        }
+        $this->concreteQueryBuilder->add(
+            'select',
+            $this->quoteIdentifiersForSelect(array_values($additionalSelects)),
+            true
+        );
+        return $additionalIdentifiers;
     }
 
     /**

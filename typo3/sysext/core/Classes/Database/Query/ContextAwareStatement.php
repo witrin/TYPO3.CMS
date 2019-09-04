@@ -41,9 +41,19 @@ class ContextAwareStatement implements \IteratorAggregate, ResultStatement
     protected $context;
 
     /**
-     * @var string
+     * @var string[]
      */
-    protected $queriedTable;
+    protected $additionalIdentifiers;
+
+    /**
+     * @var array
+     */
+    protected $filterRecordIndexes;
+
+    /**
+     * @var TableIdentifier
+     */
+    protected $tableIdentifier;
 
     /**
      * @var RecordRestrictionInterface
@@ -55,11 +65,13 @@ class ContextAwareStatement implements \IteratorAggregate, ResultStatement
      */
     protected $versionMap;
 
-    public function __construct(Statement $stmt, Context $context, string $queriedTable, RecordRestrictionInterface $restriction, VersionMap $versionMap)
+    public function __construct(array $additionalIdentifiers, Statement $stmt, Context $context, TableIdentifier $tableIdentifier, RecordRestrictionInterface $restriction, VersionMap $versionMap)
     {
+        $this->additionalIdentifiers = $additionalIdentifiers;
+        $this->filterRecordIndexes = array_fill_keys(array_values($additionalIdentifiers), true);
         $this->stmt = $stmt;
         $this->context = $context;
-        $this->queriedTable = $queriedTable;
+        $this->tableIdentifier = $tableIdentifier;
         $this->restriction = $restriction;
         $this->versionMap = $versionMap;
     }
@@ -126,7 +138,7 @@ class ContextAwareStatement implements \IteratorAggregate, ResultStatement
         }
 
         if (is_array($result)) {
-            $result = array_map([$this, 'enrichRecord'], $result);
+            $result = array_map([$this, 'modifyRecord'], $result);
             return array_filter($result, function($row) {
                 return !$this->isRecordRestricted($row);
             });
@@ -146,10 +158,18 @@ class ContextAwareStatement implements \IteratorAggregate, ResultStatement
         return null;
     }
 
-    private function enrichRecord(array $record)
+    private function modifyRecord(array $record)
     {
-        // @todo Has to be in select part (added internally) and stripped for final result set
-        $uid = (int)$record['uid'];
+        $additionalValues = array_map(
+            function ($additionalAlias) use ($record) {
+                return $record[$additionalAlias];
+            },
+            $this->additionalIdentifiers
+        );
+
+        $uid = (int)($additionalValues['uid'] ?? $record['uid']);
+        $pid = (int)($additionalValues['pid'] ?? $record['pid']);
+
         $record['_ORIG_pid'] = null;
         $record['_ORIG_uid'] = null;
 
@@ -159,17 +179,21 @@ class ContextAwareStatement implements \IteratorAggregate, ResultStatement
         # $row['_MOVE_PLH_pid'] = $orig_pid;
 
         if ($this->versionMap->has($uid)) {
-            $record['_ORIG_uid'] = $record['uid'];
-            $record['_ORIG_pid'] = $record['pid']; // -1 / kept for backward compatibility
-            // @todo Only if in initial select list
+            $record['_ORIG_uid'] = $uid;
+            $record['_ORIG_pid'] = $pid; // -1 / kept for backward compatibility
             $record['uid'] = $this->versionMap->getLiveId($uid);
             $record['pid'] = $this->versionMap->getPageId($uid);
         }
+
+        if ($this->filterRecordIndexes !== []) {
+            $record = array_diff_key($record, $this->filterRecordIndexes);
+        }
+
         return $record;
     }
 
     protected function isRecordRestricted(array $record)
     {
-        return $this->restriction->isRecordRestricted($this->queriedTable, $record);
+        return $this->restriction->isRecordRestricted($this->tableIdentifier->getTableName(), $record);
     }
 }

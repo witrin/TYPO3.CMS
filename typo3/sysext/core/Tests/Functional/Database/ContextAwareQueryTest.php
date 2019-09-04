@@ -145,7 +145,7 @@ class ContextAwareQueryTest extends AbstractDataHandlerActionTestCase
 
         $queryBuilder = $this->getConnectionPool()->getConnectionForTable($tableName)->createContextAwareQueryBuilder($context);
         $statement = $queryBuilder
-            ->select('*')
+            ->select('uid', 'header')
             ->from($tableName)
             ->execute();
 

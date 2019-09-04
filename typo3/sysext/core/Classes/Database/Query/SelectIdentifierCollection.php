@@ -49,4 +49,19 @@ class SelectIdentifierCollection
             $this->identifiers
         );
     }
+
+    public function hasFieldName(TableIdentifier $tableIdentifier, string $fieldName): bool
+    {
+        $tableName = $tableIdentifier->getAlias() ?? $tableIdentifier->getTableName();
+        foreach ($this->identifiers as $identifier) {
+            if ($identifier->getFieldName() !== $fieldName) {
+                continue;
+            }
+            // either `tableAlias.field` or just `field`
+            if ($identifier->getTableName() === $tableName || $identifier->getTableName() === null) {
+                return true;
+            }
+        }
+        return false;
+    }
 }
