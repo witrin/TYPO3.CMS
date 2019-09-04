@@ -105,7 +105,7 @@ class ContextAwareQueryBuilder extends QueryBuilder
                 ContextAwareStatement::class,
                 $this->concreteQueryBuilder->execute(),
                 $this->context,
-                (string)$this->concreteQueryBuilder->getQueryPart('from'),
+                (string)$this->concreteQueryBuilder->getQueryPart('from')[0]['table'],
                 $this->restrictionContainer,
                 $workspaceResolver->getVersionMap()
             );
