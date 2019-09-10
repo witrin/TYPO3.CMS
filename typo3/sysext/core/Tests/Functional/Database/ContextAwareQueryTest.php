@@ -98,16 +98,16 @@ class ContextAwareQueryTest extends AbstractDataHandlerActionTestCase
         // delete page
         $this->actionService->deleteRecord(self::TABLE_Page, self::VALUE_PageIdSuperfluous);
         // move page
-        $this->actionService->moveRecord(self::TABLE_Content, self::VALUE_PageIdMoveAround, self::VALUE_PageIdTarget);
+        $this->actionService->moveRecord(self::TABLE_Page, self::VALUE_PageIdMoveAround, self::VALUE_PageIdTarget);
         // create content on created page
-        $newTableIds = $this->actionService->createNewRecord(self::TABLE_Content, $this->recordIds['newPageId'], ['header' => 'Testing #1']);
+        $newTableIds = $this->actionService->createNewRecord(self::TABLE_Content, $this->recordIds['newPageId'], ['header' => 'Testing #2']);
         $this->recordIds['newContentIdSecond'] = $newTableIds[self::TABLE_Content][0];
 
         $dataSet = DataSet::read(__DIR__ . '/Fixtures/DataSet/WorkspaceQueryScenario.csv');
         $exportService = \OliverHader\DataHandlerTools\Service\ExportService::getInstance();
         $exportService->setExportPath(ORIGINAL_ROOT);
         $exportService->setFields($dataSet);
-        $exportService->reExport($dataSet->getTableNames(), $this, 'WorkspaceScenario');
+        $exportService->reExport($dataSet->getTableNames(), $this, 'WorkspaceQueryScenario');
     }
 
     /**
