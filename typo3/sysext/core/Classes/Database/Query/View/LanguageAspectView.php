@@ -1,6 +1,6 @@
 <?php
 declare(strict_types = 1);
-namespace TYPO3\CMS\Core\Database\Query\Context;
+namespace TYPO3\CMS\Core\Database\Query\View;
 
 /*
  * This file is part of the TYPO3 CMS project.
@@ -18,13 +18,13 @@ namespace TYPO3\CMS\Core\Database\Query\Context;
 use TYPO3\CMS\Core\Context\LanguageAspect;
 use TYPO3\CMS\Core\Database\Connection;
 use TYPO3\CMS\Core\Database\ConnectionPool;
+use TYPO3\CMS\Core\Database\Query\ColumnIdentifierCollection;
 use TYPO3\CMS\Core\Database\Query\QueryBuilder;
-use TYPO3\CMS\Core\Database\Query\SelectIdentifierCollection;
 use TYPO3\CMS\Core\Database\Query\TableIdentifier;
 use TYPO3\CMS\Core\Database\Query\VersionMap;
 use TYPO3\CMS\Core\Utility\GeneralUtility;
 
-class LanguageAspectView
+class LanguageAspectView implements QueryViewInterface
 {
     private const PARAMETER_PREFIX = ':_';
 
@@ -51,14 +51,15 @@ class LanguageAspectView
     }
 
     /**
-     * Builds a query for the view.
-     * 
-     * @param TableIdentifier $tableIdentifier
-     * @param SelectIdentifierCollection $selectIdentifiers
+     * @inheritdoc
      */
-    public function buildQuery(TableIdentifier $tableIdentifier, SelectIdentifierCollection $selectIdentifiers): QueryBuilder
+    public function buildQuery(TableIdentifier $tableIdentifier, ?ColumnIdentifierCollection $columnIdentifiers): ?QueryBuilder
     {
         $tableName = $tableIdentifier->getTableName();
+
+        if (!$this->hasAspect($tableName) || $this->languageAspect->getContentId() < 0) {
+            return null;
+        }
 
         $queryBuilder = $this->getQueryBuilder()
             ->from($tableName);
@@ -67,16 +68,10 @@ class LanguageAspectView
             ->getRestrictions()
             ->removeAll();
 
-        $this->project($tableName, $selectIdentifiers, $queryBuilder);
+        $this->project($tableName, $columnIdentifiers, $queryBuilder);
 
-        if (!isset($GLOBALS['TCA'][$table]['ctrl']['languageField'])
-            || !isset($GLOBALS['TCA'][$table]['ctrl']['transOrigPointerField'])
-        ) {
-            return $queryBuilder;
-        }
-
-        $languageField = $GLOBALS['TCA'][$table]['ctrl']['languageField'];
-        $translationParent = $GLOBALS['TCA'][$table]['ctrl']['transOrigPointerField'];
+        $languageField = $GLOBALS['TCA'][$tableName]['ctrl']['languageField'];
+        $translationParent = $GLOBALS['TCA'][$tableName]['ctrl']['transOrigPointerField'];
 
         if ($this->languageAspect->getContentId() > 0) {
             switch ($this->languageAspect->getOverlayType()) {
@@ -203,30 +198,20 @@ class LanguageAspectView
         return $queryBuilder;
     }
 
-    private function project(string $tableName, SelectIdentifierCollection $selectIdentifiers, QueryBuilder $queryBuilder): QueryBuilder
+    private function project(string $tableName, ?ColumnIdentifierCollection $columnIdentifiers, QueryBuilder $queryBuilder): QueryBuilder
     {
         $fieldNames = [];
-
-        foreach ($selectIdentifiers as $selectIdentifier) {
-            if ($selectIdentifier->getTableName() !== null 
-                && $selectIdentifier->getTableName() !== $tableName
-            ) {
-                continue;
-            }
-
-            if ($selectIdentifier->getFieldName() === '*') {
-                $columns = GeneralUtility::makeInstance(ConnectionPool::class)
-                    ->getConnectionForTable($tableName)
-                    ->getSchemaManager()
-                    ->listTableDetails($tableName)
-                    ->getColumns();
-                
-                foreach ($columns as $column) {
-                    $fieldNames[] = $column->getName();
-                }
-            } else {
-                $fieldNames[] = $selectIdentifier->getFieldName();
-            }
+        // As long as we do not have all columns used in the 
+        // outer query we have to project them all.
+        if ($columnIdentifiers === null) {
+            $fieldNames = array_map(function ($tableColumn) {
+                return $tableColumn->getName();
+            }, GeneralUtility::makeInstance(ConnectionPool::class)
+                ->getConnectionForTable($tableName)
+                ->getSchemaManager()
+                ->listTableDetails($tableName)
+                ->getColumns()
+            );
         }
 
         foreach ($fieldNames as $fieldName) {
@@ -234,6 +219,12 @@ class LanguageAspectView
         }
 
         return $queryBuilder;
+    }
+
+    private function hasAspect(string $tableName): bool
+    {
+        return isset($GLOBALS['TCA'][$tableName]['ctrl']['languageField'])
+            && isset($GLOBALS['TCA'][$tableName]['ctrl']['transOrigPointerField']);
     }
 
     private function getQueryBuilder(): QueryBuilder

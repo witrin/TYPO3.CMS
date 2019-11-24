@@ -1,6 +1,6 @@
 <?php
 declare(strict_types = 1);
-namespace TYPO3\CMS\Core\Database\Query\Context;
+namespace TYPO3\CMS\Core\Database\Query\View;
 
 /*
  * This file is part of the TYPO3 CMS project.
@@ -18,13 +18,13 @@ namespace TYPO3\CMS\Core\Database\Query\Context;
 use TYPO3\CMS\Core\Context\WorkspaceAspect;
 use TYPO3\CMS\Core\Database\Connection;
 use TYPO3\CMS\Core\Database\ConnectionPool;
+use TYPO3\CMS\Core\Database\Query\ColumnIdentifierCollection;
 use TYPO3\CMS\Core\Database\Query\QueryBuilder;
-use TYPO3\CMS\Core\Database\Query\SelectIdentifierCollection;
 use TYPO3\CMS\Core\Database\Query\TableIdentifier;
 use TYPO3\CMS\Core\Database\Query\VersionMap;
 use TYPO3\CMS\Core\Utility\GeneralUtility;
 
-class WorkspaceAspectView
+class WorkspaceAspectView implements QueryViewInterface
 {
     private const PARAMETER_PREFIX = ':_';
 
@@ -51,16 +51,17 @@ class WorkspaceAspectView
     }
 
     /**
-     * Builds a query for the view.
-     * 
-     * @param TableIdentifier $tableIdentifier
-     * @param SelectIdentifierCollection $selectIdentifiers
+     * @inheritdoc
      */
-    public function buildQuery(TableIdentifier $tableIdentifier, SelectIdentifierCollection $selectIdentifiers): QueryBuilder
+    public function buildQuery(TableIdentifier $tableIdentifier, ?ColumnIdentifierCollection $columnIdentifiers): ?QueryBuilder
     {
         $tableName = $tableIdentifier->getTableName();
         $workspaceId = (int) $this->workspaceAspect->getId();
-        
+
+        if (!$this->hasAspect($tableName)) {
+            return null;
+        }
+
         $queryBuilder = $this->getQueryBuilder()
             ->from($tableName);
 
@@ -68,11 +69,7 @@ class WorkspaceAspectView
             ->getRestrictions()
             ->removeAll();
 
-        $this->project($tableName, $selectIdentifiers, $queryBuilder);
-
-        if (!isset($GLOBALS['TCA'][$tableName]['ctrl']['versioningWS'])) {
-            return $queryBuilder;
-        }
+        $this->project($tableName, $columnIdentifiers, $queryBuilder);
 
         $queryBuilder
             ->leftJoin(
@@ -203,81 +200,69 @@ class WorkspaceAspectView
         return $queryBuilder;
     }
 
-    private function project(string $tableName, SelectIdentifierCollection $selectIdentifiers, QueryBuilder $queryBuilder): QueryBuilder
+    private function project(string $tableName, ?ColumnIdentifierCollection $columnIdentifiers, QueryBuilder $queryBuilder): QueryBuilder
     {
         $fieldNames = [];
-
-        foreach ($selectIdentifiers as $selectIdentifier) {
-            if ($selectIdentifier->getTableName() !== null 
-                && $selectIdentifier->getTableName() !== $tableName
-            ) {
-                continue;
-            }
-
-            if ($selectIdentifier->getFieldName() === '*') {
-                $columns = GeneralUtility::makeInstance(ConnectionPool::class)
-                    ->getConnectionForTable($tableName)
-                    ->getSchemaManager()
-                    ->listTableDetails($tableName)
-                    ->getColumns();
-                
-                foreach ($columns as $column) {
-                    $fieldNames[] = $column->getName();
-                }
-
-                if (isset($GLOBALS['TCA'][$tableName]['ctrl']['versioningWS'])) {
-                    $fieldNames[] = '_ORIG_uid';
-                    $fieldNames[] = '_ORIG_pid';
-                }
-            } else {
-                $fieldNames[] = $selectIdentifier->getFieldName();
-            }
+        // As long as we do not have all columns used in the 
+        // outer query we have to project them all.
+        if ($columnIdentifiers === null) {
+            $fieldNames = array_map(function ($tableColumn) {
+                return $tableColumn->getName();
+            }, GeneralUtility::makeInstance(ConnectionPool::class)
+                ->getConnectionForTable($tableName)
+                ->getSchemaManager()
+                ->listTableDetails($tableName)
+                ->getColumns()
+            );
         }
 
-        foreach ($fieldNames as $fieldName) {
-            if ($fieldName === 'uid' && isset($GLOBALS['TCA'][$tableName]['ctrl']['versioningWS'])) {
-                $queryBuilder->addSelectLiteral(
-                    sprintf(
-                        'COALESCE(%s,%s) AS %s',
-                        $queryBuilder->quoteIdentifier('original.uid'),
-                        $queryBuilder->quoteIdentifier($tableName . '.uid'),
-                        $queryBuilder->quoteIdentifier('uid')
-                    )
-                );
-            } elseif ($fieldName === 'pid' && isset($GLOBALS['TCA'][$tableName]['ctrl']['versioningWS'])) {
-                $queryBuilder->addSelectLiteral(
-                    sprintf(
-                        'COALESCE(%s,%s,%s) AS %s',
-                        $queryBuilder->quoteIdentifier('placeholder.pid'),
-                        $queryBuilder->quoteIdentifier('original.pid'),
-                        $queryBuilder->quoteIdentifier($tableName . '.pid'),
-                        $queryBuilder->quoteIdentifier('pid')
-                    )
-                );
-            } elseif ($fieldName === '_ORIG_uid') {
-                $queryBuilder->addSelectLiteral(
-                    sprintf(
-                        'CASE WHEN %s IS NULL THEN NULL ELSE %s END AS %s',
-                        $queryBuilder->quoteIdentifier('original.uid'),
-                        $queryBuilder->quoteIdentifier($tableName . '.uid'),
-                        $queryBuilder->quoteIdentifier('_ORIG_uid')
-                    )
-                );
-            } elseif ($fieldName === '_ORIG_pid') {
-                $queryBuilder->addSelectLiteral(
-                    sprintf(
-                        'CASE WHEN %s IS NULL THEN NULL ELSE %s END AS %s',
-                        $queryBuilder->quoteIdentifier('original.pid'),
-                        $queryBuilder->quoteIdentifier($tableName . '.pid'),
-                        $queryBuilder->quoteIdentifier('_ORIG_pid')
-                    )
-                );
-            } else {
+        if ($this->hasAspect($tableName)) {
+            $fieldLiterals = [
+                'uid' => [
+                    'literal' => 'COALESCE(%s,%s)',
+                    'identifiers' => ['original.uid', $tableName . '.uid'],
+                ],
+                'pid' => [
+                    'literal' => 'COALESCE(%s,%s,%s)',
+                    'identifiers' => ['placeholder.pid', 'original.pid', $tableName . '.pid'],
+                ],
+                'deleted' => [
+                    'literal' => 'CASE WHEN %s = 2 THEN 1 ELSE %s END',
+                    'identifiers' => [$tableName . '.t3ver_state', $tableName . '.deleted'],
+                ],
+                'sorting' => [
+                    'literal' => 'COALESCE(%s,%s)',
+                    'identifiers' => ['placeholder.sorting', $tableName . '.sorting'],
+                ],
+            ];
+
+            foreach ($fieldNames as $fieldName) {
+                if (isset($fieldLiterals[$fieldName])) {
+                    $queryBuilder->addSelectLiteral(
+                        sprintf(
+                            $fieldLiterals[$fieldName]['literal'] 
+                                . ' AS ' . $queryBuilder->quoteIdentifier($fieldName),
+                            ...array_map(function($identifier) use ($queryBuilder) {
+                                return $queryBuilder->quoteIdentifier($identifier);
+                            }, $fieldLiterals[$fieldName]['identifiers'])
+                        )
+                    );
+                } else {
+                    $queryBuilder->addSelect($tableName . '.' . $fieldName);
+                }
+            }
+        } else {
+            foreach ($fieldNames as $fieldName) {
                 $queryBuilder->addSelect($tableName . '.' . $fieldName);
             }
         }
 
         return $queryBuilder;
+    }
+
+    private function hasAspect(string $tableName): bool
+    {
+        return isset($GLOBALS['TCA'][$tableName]['ctrl']['versioningWS']);
     }
 
     private function getQueryBuilder(): QueryBuilder
