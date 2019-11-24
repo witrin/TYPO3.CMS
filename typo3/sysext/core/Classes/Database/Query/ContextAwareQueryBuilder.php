@@ -91,7 +91,9 @@ final class ContextAwareQueryBuilder extends QueryBuilder
             $innerQuery = $this->mergeInlineView($outerQuery, $innerQuery);
         }
 
-        $this->mergeInlineView($this, $innerQuery);
+        if ($innerQuery !== false) {
+            $this->mergeInlineView($this, $innerQuery);
+        }
 
         $originalWhereConditions = $this->addAdditionalWhereConditions();
 
@@ -150,14 +152,21 @@ final class ContextAwareQueryBuilder extends QueryBuilder
      */
     private function mergeInlineView(QueryBuilder $outerQueryBuilder, QueryBuilder $innerQueryBuilder): QueryBuilder
     {
+        $outerFromPart = $outerQueryBuilder->getQueryPart('from');
+
+        if (
+            !isset($outerFromPart[0]['table']) 
+            || $outerFromPart[0]['table'] !== $this->quoteIdentifier($this->tableIdentifier->getTableName())
+        ) {
+            throw new \Exception('Inline view is not compatible with outer query.', 1574599278);
+        }
+
         $outerQueryBuilder->add(
             'from',
             [
                 [
                     'table' => sprintf('(%s)', $innerQueryBuilder->getSQL()), 
-                    'alias' => $this->quoteIdentifier(
-                        $this->tableIdentifier->getAlias() ?? $this->tableIdentifier->getTableName()
-                    )
+                    'alias' => $outerFromPart[0]['alias'] ?? $outerFromPart[0]['table']
                 ]
             ],
             false

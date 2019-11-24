@@ -26,7 +26,30 @@ use TYPO3\CMS\Core\Utility\GeneralUtility;
 
 class WorkspaceAspectView implements QueryViewInterface
 {
+    /**
+     * @var string
+     */
     private const PARAMETER_PREFIX = ':_';
+    
+    /**
+     * @var string
+     */
+    private const ALIAS_TABLE = 't';
+
+    /**
+     * @var string
+     */
+    private const ALIAS_VERSION = 'v';
+
+    /**
+     * @var string
+     */
+    private const ALIAS_PLACEHOLDER = 'p';
+
+    /**
+     * @var string
+     */
+    private const ALIAS_ORIGINAL = 'o';
 
     /**
      * @var Connection
@@ -63,7 +86,7 @@ class WorkspaceAspectView implements QueryViewInterface
         }
 
         $queryBuilder = $this->getQueryBuilder()
-            ->from($tableName);
+            ->from($tableName, self::ALIAS_TABLE);
 
         $queryBuilder
             ->getRestrictions()
@@ -73,16 +96,16 @@ class WorkspaceAspectView implements QueryViewInterface
 
         $queryBuilder
             ->leftJoin(
+                self::ALIAS_TABLE,
                 $tableName,
-                $tableName,
-                'version',
+                self::ALIAS_VERSION,
                 (string) $queryBuilder->expr()->andX(
                     $queryBuilder->expr()->eq(
-                        $tableName . '.uid',
-                        $queryBuilder->quoteIdentifier('version.t3ver_oid')
+                        self::ALIAS_TABLE . '.uid',
+                        $queryBuilder->quoteIdentifier(self::ALIAS_VERSION . '.t3ver_oid')
                     ),
                     $queryBuilder->expr()->eq(
-                        $tableName . '.t3ver_wsid',
+                        self::ALIAS_TABLE . '.t3ver_wsid',
                         $queryBuilder->createNamedParameter(
                             0,
                             \PDO::PARAM_INT,
@@ -90,7 +113,7 @@ class WorkspaceAspectView implements QueryViewInterface
                         )
                     ),
                     $queryBuilder->expr()->eq(
-                        'version.t3ver_wsid',
+                        self::ALIAS_VERSION . '.t3ver_wsid',
                         $queryBuilder->createNamedParameter(
                             $workspaceId,
                             \PDO::PARAM_INT,
@@ -100,16 +123,16 @@ class WorkspaceAspectView implements QueryViewInterface
                 )
             )
             ->leftJoin(
+                self::ALIAS_TABLE,
                 $tableName,
-                $tableName,
-                'original',
+                self::ALIAS_ORIGINAL,
                 (string) $queryBuilder->expr()->andX(
                     $queryBuilder->expr()->eq(
-                        $tableName . '.t3ver_oid',
-                        $queryBuilder->quoteIdentifier('original.uid')
+                        self::ALIAS_TABLE . '.t3ver_oid',
+                        $queryBuilder->quoteIdentifier(self::ALIAS_ORIGINAL . '.uid')
                     ),
                     $queryBuilder->expr()->eq(
-                        $tableName . '.t3ver_wsid',
+                        self::ALIAS_TABLE . '.t3ver_wsid',
                         $queryBuilder->createNamedParameter(
                             $workspaceId,
                             \PDO::PARAM_INT,
@@ -117,7 +140,7 @@ class WorkspaceAspectView implements QueryViewInterface
                         )
                     ),
                     $queryBuilder->expr()->in(
-                        'original.t3ver_wsid',
+                        self::ALIAS_ORIGINAL . '.t3ver_wsid',
                         $queryBuilder->createNamedParameter(
                             [0, $workspaceId],
                             Connection::PARAM_INT_ARRAY,
@@ -127,16 +150,16 @@ class WorkspaceAspectView implements QueryViewInterface
                 )
             )
             ->leftJoin(
+                self::ALIAS_TABLE,
                 $tableName,
-                $tableName,
-                'placeholder',
+                self::ALIAS_PLACEHOLDER,
                 (string) $queryBuilder->expr()->andX(
                     $queryBuilder->expr()->eq(
-                        $tableName . '.t3ver_oid',
-                        $queryBuilder->quoteIdentifier('placeholder.t3ver_move_id')
+                        self::ALIAS_TABLE . '.t3ver_oid',
+                        $queryBuilder->quoteIdentifier(self::ALIAS_PLACEHOLDER . '.t3ver_move_id')
                     ),
                     $queryBuilder->expr()->neq(
-                        'placeholder.t3ver_wsid',
+                        self::ALIAS_PLACEHOLDER . '.t3ver_wsid',
                         $queryBuilder->createNamedParameter(
                             0,
                             \PDO::PARAM_INT,
@@ -144,7 +167,7 @@ class WorkspaceAspectView implements QueryViewInterface
                         )
                     ),
                     $queryBuilder->expr()->eq(
-                        $tableName . '.t3ver_wsid',
+                        self::ALIAS_TABLE . '.t3ver_wsid',
                         $queryBuilder->createNamedParameter(
                             $workspaceId,
                             \PDO::PARAM_INT,
@@ -152,7 +175,7 @@ class WorkspaceAspectView implements QueryViewInterface
                         )
                     ),
                     $queryBuilder->expr()->in(
-                        'placeholder.t3ver_wsid',
+                        self::ALIAS_PLACEHOLDER . '.t3ver_wsid',
                         $queryBuilder->createNamedParameter(
                             [0, $workspaceId],
                             Connection::PARAM_INT_ARRAY,
@@ -165,7 +188,7 @@ class WorkspaceAspectView implements QueryViewInterface
                 $queryBuilder->expr()->orX(
                     $queryBuilder->expr()->andX(
                         $queryBuilder->expr()->eq(
-                            $tableName . '.t3ver_wsid',
+                            self::ALIAS_TABLE . '.t3ver_wsid',
                             $queryBuilder->createNamedParameter(
                                 0,
                                 \PDO::PARAM_INT,
@@ -173,12 +196,12 @@ class WorkspaceAspectView implements QueryViewInterface
                             )
                         ),
                         $queryBuilder->expr()->isNull(
-                            'version.uid'
+                            self::ALIAS_VERSION . '.uid'
                         )
                     ),
                     $queryBuilder->expr()->andX(
                         $queryBuilder->expr()->eq(
-                            $tableName . '.t3ver_wsid',
+                            self::ALIAS_TABLE . '.t3ver_wsid',
                             $queryBuilder->createNamedParameter(
                                 $workspaceId,
                                 \PDO::PARAM_INT,
@@ -186,7 +209,7 @@ class WorkspaceAspectView implements QueryViewInterface
                             )
                         ),
                         $queryBuilder->expr()->notIn(
-                            $tableName . '.t3ver_state',
+                            self::ALIAS_TABLE . '.t3ver_state',
                             $queryBuilder->createNamedParameter(
                                 [1, 3],
                                 Connection::PARAM_INT_ARRAY,
@@ -220,19 +243,19 @@ class WorkspaceAspectView implements QueryViewInterface
             $fieldLiterals = [
                 'uid' => [
                     'literal' => 'COALESCE(%s,%s)',
-                    'identifiers' => ['original.uid', $tableName . '.uid'],
+                    'identifiers' => [self::ALIAS_ORIGINAL . '.uid', self::ALIAS_TABLE . '.uid'],
                 ],
                 'pid' => [
                     'literal' => 'COALESCE(%s,%s,%s)',
-                    'identifiers' => ['placeholder.pid', 'original.pid', $tableName . '.pid'],
+                    'identifiers' => [self::ALIAS_PLACEHOLDER . '.pid', self::ALIAS_ORIGINAL . '.pid', self::ALIAS_TABLE . '.pid'],
                 ],
                 'deleted' => [
                     'literal' => 'CASE WHEN %s = 2 THEN 1 ELSE %s END',
-                    'identifiers' => [$tableName . '.t3ver_state', $tableName . '.deleted'],
+                    'identifiers' => [self::ALIAS_TABLE . '.t3ver_state', self::ALIAS_TABLE . '.deleted'],
                 ],
                 'sorting' => [
                     'literal' => 'COALESCE(%s,%s)',
-                    'identifiers' => ['placeholder.sorting', $tableName . '.sorting'],
+                    'identifiers' => [self::ALIAS_PLACEHOLDER . '.sorting', self::ALIAS_TABLE . '.sorting'],
                 ],
             ];
 
@@ -248,12 +271,12 @@ class WorkspaceAspectView implements QueryViewInterface
                         )
                     );
                 } else {
-                    $queryBuilder->addSelect($tableName . '.' . $fieldName);
+                    $queryBuilder->addSelect(self::ALIAS_TABLE . '.' . $fieldName);
                 }
             }
         } else {
             foreach ($fieldNames as $fieldName) {
-                $queryBuilder->addSelect($tableName . '.' . $fieldName);
+                $queryBuilder->addSelect(self::ALIAS_TABLE . '.' . $fieldName);
             }
         }
 
